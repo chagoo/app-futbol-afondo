@@ -811,7 +811,8 @@
       container.innerHTML = rendered;
       const hasRawTag = container.innerHTML.includes("<img");
       const hasEscapedTag = container.innerHTML.includes("&lt;img");
-      const canBreakAttribute = escapeAttr('" onmouseover="window.__xssFlag=1').includes("onmouseover=");
+      const escapedAttr = escapeAttr('" onmouseover="window.__xssFlag=1');
+      const canBreakAttribute = escapedAttr.includes('" onmouseover=') || escapedAttr.includes("' onmouseover=");
       const passed = !hasRawTag && hasEscapedTag && !canBreakAttribute && window.__xssFlag === 0;
       notes.textContent = passed
         ? "Prueba E2E de seguridad: OK. Se bloquearon vectores XSS en HTML y atributos."
