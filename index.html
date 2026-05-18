@@ -450,7 +450,11 @@
     }
 
     async function boot() {
-      await handleOAuthCallback();
+      try {
+        await handleOAuthCallback();
+      } catch (error) {
+        notes.textContent = error.message || "No se pudo validar el inicio con OAuth.";
+      }
       await refreshFromBackend();
       bindEvents();
       render();
@@ -905,18 +909,24 @@
     async function startOAuth(provider) {
       const codeVerifier = randomString(64);
       const codeChallenge = await sha256Base64Url(codeVerifier);
+      const oauthNonce = randomString(32);
       const redirectUri = window.location.href.split("?")[0];
-      oauthState = { codeVerifier, provider };
+      oauthState = { codeVerifier, provider, state: oauthNonce };
       localStorage.setItem(OAUTH_KEY, JSON.stringify(oauthState));
-      const data = await request(`/api/auth/oauth/${provider}?redirect_uri=${encodeURIComponent(redirectUri)}&code_challenge=${encodeURIComponent(codeChallenge)}`);
+      const data = await request(`/api/auth/oauth/${provider}?redirect_uri=${encodeURIComponent(redirectUri)}&code_challenge=${encodeURIComponent(codeChallenge)}&state=${encodeURIComponent(oauthNonce)}`);
       window.location.href = data.authUrl || data.url || data.data?.url;
     }
 
     async function handleOAuthCallback() {
       const params = new URLSearchParams(window.location.search);
       const code = params.get("insforge_code");
+      const returnedState = params.get("state");
       if (!code) return;
       const state = loadJson(OAUTH_KEY, null);
+      if (!state?.codeVerifier || !state?.state || returnedState !== state.state) {
+        localStorage.removeItem(OAUTH_KEY);
+        throw new Error("Estado OAuth invalido. Intenta iniciar sesion otra vez.");
+      }
       const data = await request("/api/auth/oauth/exchange?client_type=desktop", {
         method: "POST",
         body: JSON.stringify({ code, code_verifier: state?.codeVerifier })
@@ -1058,4 +1068,3 @@
   </script>
 </body>
 </html>
-
