@@ -460,6 +460,7 @@
       await refreshFromBackend();
       bindEvents();
       render();
+      runSecurityE2ETest();
     }
 
     async function refreshFromBackend() {
