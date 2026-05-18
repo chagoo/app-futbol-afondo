@@ -345,6 +345,7 @@
       <button id="addTeam">Agregar equipo</button>
       <button class="primary" id="copy">Copiar lista</button>
       <button class="danger" id="reset">Restaurar</button>
+      <button id="runSecurityTest" type="button">Prueba E2E seguridad</button>
     </section>
 
     <section class="stats" aria-label="Resumen">
@@ -801,6 +802,23 @@
       setTimeout(() => document.querySelector("#copy").textContent = "Copiar lista", 1500);
     }
 
+
+    function runSecurityE2ETest() {
+      const payload = '<img src=x onerror="window.__xssFlag=1">';
+      window.__xssFlag = 0;
+      const rendered = `<span class="code">${escapeHtml(payload)}</span>`;
+      const container = document.createElement("div");
+      container.innerHTML = rendered;
+      const hasRawTag = container.innerHTML.includes("<img");
+      const hasEscapedTag = container.innerHTML.includes("&lt;img");
+      const canBreakAttribute = escapeAttr('" onmouseover="window.__xssFlag=1').includes("onmouseover=");
+      const passed = !hasRawTag && hasEscapedTag && !canBreakAttribute && window.__xssFlag === 0;
+      notes.textContent = passed
+        ? "Prueba E2E de seguridad: OK. Se bloquearon vectores XSS en HTML y atributos."
+        : "Prueba E2E de seguridad: FALLA. Revisa sanitizacion de HTML/atributos.";
+      notes.classList.toggle("ok", passed);
+    }
+
     function bindEvents() {
       document.querySelectorAll(".view-tab").forEach(button => {
         button.addEventListener("click", async () => {
@@ -814,6 +832,7 @@
       document.querySelector("#copy").addEventListener("click", copyList);
       document.querySelector("#addTeam").addEventListener("click", addTeam);
       document.querySelector("#reset").classList.add("hidden");
+      document.querySelector("#runSecurityTest").addEventListener("click", runSecurityE2ETest);
       document.querySelector("#authForm").addEventListener("submit", async event => {
         event.preventDefault();
         await loginUser();
