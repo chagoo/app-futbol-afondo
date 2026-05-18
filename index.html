@@ -359,7 +359,7 @@
     <section id="teamsList" class="teams" aria-label="Lista de faltantes"></section>
 
     <section id="exchangePanel" class="exchange-panel">
-      <strong>Propuesta de intercambio</strong>
+      <strong>Propuesta de intercambio (<span id="selectedTotal">0</span>)</strong>
       <p id="exchangeSummary">Inicia sesion para marcar que repetidas quieres y que faltantes puedes darme.</p>
       <textarea id="exchangeNote" placeholder="Nota opcional para coordinar el intercambio"></textarea>
       <div class="exchange-actions">
@@ -442,6 +442,7 @@
     const exchangeSummary = document.querySelector("#exchangeSummary");
     const exchangeNote = document.querySelector("#exchangeNote");
     const submitExchangeButton = document.querySelector("#submitExchange");
+    const selectedTotalEl = document.querySelector("#selectedTotal");
 
     function allCodes(item) {
       return [
@@ -738,7 +739,7 @@
       const wants = listEntries(duplicates).filter(entry => selectedWants.has(entry.id));
       const gives = listEntries(missing).filter(entry => selectedGives.has(entry.id));
       const total = wants.length + gives.length;
-      document.querySelector("#selectedTotal").textContent = total;
+      if (selectedTotalEl) selectedTotalEl.textContent = String(total);
       const summaryLines = [
         `Seleccionadas: ${total}`,
         ...wants.map(entry => `Quiero ${entry.team} ${entry.code}`),
