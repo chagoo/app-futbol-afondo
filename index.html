@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Estampas faltantes - Album FIFA World Cup 2026</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #202124;
+      --muted: #62666d;
+      --line: #d9dde3;
+      --paper: #ffffff;
+      --wash: #f4f6f8;
+      --red: #cf2338;
+      --green: #14885f;
+      --blue: #275aa6;
+      --yellow: #f5c542;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--ink);
+      background: var(--wash);
+    }
+
+    header {
+      background: linear-gradient(90deg, var(--red), var(--blue));
+      color: #fff;
+      padding: 28px 18px 22px;
+    }
+
+    .wrap {
+      width: min(1120px, calc(100% - 28px));
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(28px, 4vw, 46px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 0;
+      max-width: 760px;
+      color: rgba(255, 255, 255, 0.88);
+      font-size: 16px;
+      line-height: 1.45;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: 1fr auto auto auto;
+      gap: 10px;
+      align-items: center;
+      padding: 16px 0;
+    }
+
+    input, select, button {
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+    }
+
+    input, select {
+      padding: 0 12px;
+    }
+
+    button {
+      padding: 0 14px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    button.primary {
+      border-color: var(--green);
+      background: var(--green);
+      color: #fff;
+    }
+
+    button.danger {
+      border-color: #cc3245;
+      color: #cc3245;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin: 8px 0 18px;
+    }
+
+    .stat {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-left: 6px solid var(--yellow);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 28px;
+      line-height: 1.1;
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .teams {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px;
+    }
+
+    .team {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .team h2 {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 0;
+      padding: 12px 14px;
+      font-size: 18px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfd;
+    }
+
+    .team h2 button {
+      min-height: 32px;
+      padding: 0 9px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .codes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 12px 14px 14px;
+    }
+
+    .code {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 7px 10px;
+      background: #fff;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .code.uncertain {
+      border-style: dashed;
+      color: #7a4d00;
+      background: #fff7dc;
+    }
+
+    .code button {
+      min-height: 22px;
+      width: 22px;
+      padding: 0;
+      border-radius: 50%;
+      border-color: transparent;
+      background: transparent;
+      color: inherit;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .editor {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 8px;
+      padding: 0 14px 14px;
+    }
+
+    .editor input {
+      min-width: 0;
+    }
+
+    .editor label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 42px;
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .editor input[type="checkbox"] {
+      min-height: auto;
+      width: 16px;
+      height: 16px;
+    }
+
+    .notes {
+      margin: 18px 0;
+      padding: 12px 14px;
+      border: 1px solid #f0d28b;
+      border-radius: 8px;
+      background: #fff8e3;
+      color: #5b4100;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 720px) {
+      .toolbar {
+        grid-template-columns: 1fr;
+      }
+
+      .stats {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>Estampas faltantes</h1>
+      <p class="subtitle">Album FIFA World Cup 2026. Lista generada desde el video del album y acompanada con fotos de las paginas para confirmar o compartir al intercambiar.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="toolbar" aria-label="Filtros">
+      <input id="search" type="search" placeholder="Buscar equipo o codigo, ejemplo: MEX, BRA 18, Alemania">
+      <select id="status">
+        <option value="all">Todas</option>
+        <option value="confirmed">Confirmadas</option>
+        <option value="uncertain">Por confirmar</option>
+      </select>
+      <button id="addTeam">Agregar equipo</button>
+      <button class="primary" id="copy">Copiar lista</button>
+      <button class="danger" id="reset">Restaurar</button>
+    </section>
+
+    <section class="stats" aria-label="Resumen">
+      <div class="stat"><strong id="total">0</strong><span>faltantes visibles</span></div>
+      <div class="stat"><strong id="teams">0</strong><span>equipos/secciones</span></div>
+      <div class="stat"><strong id="uncertain">0</strong><span>por confirmar por reflejo</span></div>
+    </section>
+
+    <p class="notes">Los codigos con borde punteado son los que el video deja con reflejo o movimiento. Sirven como primera lista para intercambiar, pero conviene verificarlos viendo la foto de la pagina.</p>
+
+    <section id="teamsList" class="teams" aria-label="Lista de faltantes"></section>
+
+  </main>
+
+  <script>
+    const defaultMissing = [
+      { team: "Mexico", codes: ["MEX 4", "MEX 6", "MEX 7", "MEX 8", "MEX 11", "MEX 18", "Rivas"] },
+      { team: "South Africa", codes: ["RSA 7"], uncertain: ["RSA 4", "RSA 11", "RSA 13", "RSA 15", "RSA 19"] },
+      { team: "Korea Republic", codes: ["KOR 4"], uncertain: ["Minam Kim"] },
+      { team: "Czechia", codes: ["CZE 1", "CZE 3", "CZE 5", "CZE 7", "CZE 8", "CZE 11", "CZE 13", "CZE 18", "CZE 20"] },
+      { team: "Canada", codes: ["CAN 2", "CAN 3", "CAN 7", "CAN 9", "CAN 20"] },
+      { team: "Bosnia-Herzegovina", codes: ["BIH 3", "BIH 5", "BIH 10", "BIH 14", "BIH 17", "BIH 19"] },
+      { team: "Qatar", codes: ["QAT 20"], uncertain: ["QAT 12", "QAT 14"] },
+      { team: "Switzerland", codes: ["SUI 4", "SUI 11", "SUI 16", "SUI 17", "SUI 18"] },
+      { team: "Brazil", codes: ["BRA 18"], uncertain: ["BRA 4", "BRA 6"] },
+      { team: "Morocco", codes: ["MAR 6", "MAR 10", "MAR 12", "MAR 18"] },
+      { team: "Haiti", codes: ["HAI 3", "HAI 12", "HAI 15", "HAI 18"] },
+      { team: "Scotland", codes: ["SCO 10", "SCO 20"] },
+      { team: "USA", codes: ["USA 3", "USA 10", "USA 12", "USA 14"] },
+      { team: "Paraguay", codes: ["PAR 5", "PAR 13", "PAR 20"] },
+      { team: "Australia", codes: ["AUS 3", "AUS 6", "AUS 9", "AUS 11", "AUS 12", "AUS 20"] },
+      { team: "Turkiye", codes: ["TUR 4", "TUR 10", "TUR 14", "TUR 16", "TUR 17", "TUR 19"] },
+      { team: "Germany", codes: ["GER 2", "GER 9", "GER 19"] },
+      { team: "Curacao", codes: ["CUW 6", "CUW 8", "CUW 9", "CUW 11", "CUW 14", "CUW 18"] },
+      { team: "Cote d'Ivoire", codes: ["CIV 11", "CIV 17", "CIV 20"] },
+      { team: "Ecuador", codes: ["ECU 1", "ECU 7"], uncertain: ["ECU 4"] },
+      { team: "Japan", codes: ["JPN 10", "JPN 11", "JPN 20"], uncertain: ["JPN 13", "JPN 14"] },
+      { team: "Tunisia", codes: ["TUN 11", "TUN 12", "TUN 19"] },
+      { team: "Egypt", codes: ["EGY 10", "EGY 17", "EGY 20"], uncertain: ["EGY 6", "EGY 14"] },
+      { team: "Iran", codes: [], uncertain: ["IRN 5"] },
+      { team: "New Zealand", codes: ["NZL 6", "NZL 10"] },
+      { team: "Saudi Arabia", codes: ["KSA 3", "KSA 7", "KSA 9"], uncertain: ["KSA 6"] },
+      { team: "Uruguay", codes: ["URU 6", "URU 9", "URU 16", "URU 17"] },
+      { team: "France", codes: ["FRA 3", "FRA 7"] },
+      { team: "Senegal", codes: ["SEN 15", "SEN 17"] },
+      { team: "Iraq", codes: ["IRQ 3"], uncertain: ["IRQ 4"] },
+      { team: "Austria", codes: ["AUT 13"] },
+      { team: "Jordan", codes: ["JOR 1"] },
+      { team: "Colombia", codes: ["COL 3", "COL 8"] },
+      { team: "England", codes: ["ENG 7", "ENG 8"] },
+      { team: "Croatia", codes: ["CRO 11", "CRO 15", "CRO 18"] },
+      { team: "Panama", codes: ["PAN 1", "PAN 2"], uncertain: ["PAN 5", "PAN 13"] }
+    ];
+
+    const storageKey = "album-faltantes-v1";
+    let missing = loadMissing();
+
+    const teamsList = document.querySelector("#teamsList");
+    const search = document.querySelector("#search");
+    const status = document.querySelector("#status");
+
+    function allCodes(item) {
+      return [
+        ...item.codes.map(code => ({ code, uncertain: false })),
+        ...(item.uncertain || []).map(code => ({ code, uncertain: true }))
+      ];
+    }
+
+    function loadMissing() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(storageKey));
+        if (Array.isArray(saved)) return mergeSavedWithDefaults(saved);
+      } catch (error) {
+        console.warn("No se pudo cargar la lista guardada", error);
+      }
+      return structuredClone(defaultMissing);
+    }
+
+    function mergeSavedWithDefaults(saved) {
+      const savedByTeam = new Map(saved.map(item => [item.team, item]));
+      const merged = defaultMissing.map(item => savedByTeam.get(item.team) || structuredClone(item));
+      const defaultTeams = new Set(defaultMissing.map(item => item.team));
+      const customTeams = saved.filter(item => !defaultTeams.has(item.team));
+      return [...merged, ...customTeams];
+    }
+
+    function saveMissing() {
+      localStorage.setItem(storageKey, JSON.stringify(missing));
+    }
+
+    function normalizeCode(value) {
+      return value.trim().replace(/\s+/g, " ").toUpperCase();
+    }
+
+    function removeCode(teamName, code, isUncertain) {
+      const item = missing.find(entry => entry.team === teamName);
+      if (!item) return;
+      const field = isUncertain ? "uncertain" : "codes";
+      item[field] = (item[field] || []).filter(entry => entry !== code);
+      saveMissing();
+      render();
+    }
+
+    function toggleCode(teamName, code, isUncertain) {
+      const item = missing.find(entry => entry.team === teamName);
+      if (!item) return;
+      const from = isUncertain ? "uncertain" : "codes";
+      const to = isUncertain ? "codes" : "uncertain";
+      item[from] = (item[from] || []).filter(entry => entry !== code);
+      item[to] = [...(item[to] || []), code].sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
+      saveMissing();
+      render();
+    }
+
+    function addCode(teamName, code, isUncertain) {
+      const item = missing.find(entry => entry.team === teamName);
+      const clean = normalizeCode(code);
+      if (!item || !clean) return;
+      item.codes = (item.codes || []).filter(entry => entry !== clean);
+      item.uncertain = (item.uncertain || []).filter(entry => entry !== clean);
+      const field = isUncertain ? "uncertain" : "codes";
+      item[field] = [...(item[field] || []), clean].sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
+      saveMissing();
+      render();
+    }
+
+    function addTeam() {
+      const team = prompt("Nombre del equipo o seccion:");
+      if (!team || !team.trim()) return;
+      const clean = team.trim();
+      if (!missing.some(item => item.team.toLowerCase() === clean.toLowerCase())) {
+        missing.push({ team: clean, codes: [], uncertain: [] });
+        missing.sort((a, b) => a.team.localeCompare(b.team, "es"));
+        saveMissing();
+      }
+      render();
+    }
+
+    function removeTeam(teamName) {
+      if (!confirm(`Quitar ${teamName} de la lista?`)) return;
+      missing = missing.filter(item => item.team !== teamName);
+      saveMissing();
+      render();
+    }
+
+    function filteredData() {
+      const q = search.value.trim().toLowerCase();
+      const mode = status.value;
+      return missing
+        .map(item => ({
+          ...item,
+          filteredCodes: allCodes(item).filter(entry => {
+            const matchesQuery = !q || item.team.toLowerCase().includes(q) || entry.code.toLowerCase().includes(q);
+            const matchesStatus = mode === "all" || (mode === "confirmed" && !entry.uncertain) || (mode === "uncertain" && entry.uncertain);
+            return matchesQuery && matchesStatus;
+          })
+        }))
+        .filter(item => item.filteredCodes.length || (!q && mode === "all"));
+    }
+
+    function render() {
+      const data = filteredData();
+      teamsList.innerHTML = data.map(item => `
+        <article class="team">
+          <h2>${item.team}<button type="button" data-remove-team="${item.team}">Quitar</button></h2>
+          <div class="codes">
+            ${item.filteredCodes.map(entry => `
+              <span class="code ${entry.uncertain ? "uncertain" : ""}">
+                ${entry.code}${entry.uncertain ? " ?" : ""}
+                <button type="button" title="Cambiar estado" data-toggle-team="${item.team}" data-code="${entry.code}" data-uncertain="${entry.uncertain}">~</button>
+                <button type="button" title="Quitar" data-remove-team="${item.team}" data-code="${entry.code}" data-uncertain="${entry.uncertain}">x</button>
+              </span>
+            `).join("")}
+          </div>
+          <form class="editor" data-add-code="${item.team}">
+            <input name="code" placeholder="Nueva falta, ej. MEX 11" autocomplete="off">
+            <label><input name="uncertain" type="checkbox"> pendiente</label>
+            <button type="submit">Agregar</button>
+          </form>
+        </article>
+      `).join("");
+
+      const confirmed = missing.flatMap(item => item.codes).length;
+      const uncertain = missing.flatMap(item => item.uncertain || []).length;
+      document.querySelector("#total").textContent = confirmed + uncertain;
+      document.querySelector("#teams").textContent = missing.length;
+      document.querySelector("#uncertain").textContent = uncertain;
+    }
+
+    function copyList() {
+      const lines = missing.map(item => {
+        const confirmed = item.codes.join(", ");
+        const uncertain = (item.uncertain || []).map(code => `${code}?`).join(", ");
+        return `${item.team}: ${[confirmed, uncertain].filter(Boolean).join(", ")}`;
+      });
+      navigator.clipboard.writeText(`Busco estas estampas para intercambio:\n${lines.join("\n")}`);
+      document.querySelector("#copy").textContent = "Lista copiada";
+      setTimeout(() => document.querySelector("#copy").textContent = "Copiar lista", 1500);
+    }
+
+    search.addEventListener("input", render);
+    status.addEventListener("change", render);
+    document.querySelector("#copy").addEventListener("click", copyList);
+    document.querySelector("#addTeam").addEventListener("click", addTeam);
+    document.querySelector("#reset").addEventListener("click", () => {
+      if (!confirm("Restaurar la lista original? Se perderan los cambios guardados en este navegador.")) return;
+      localStorage.removeItem(storageKey);
+      missing = structuredClone(defaultMissing);
+      render();
+    });
+    teamsList.addEventListener("click", event => {
+      const button = event.target.closest("button");
+      if (!button) return;
+      if (button.dataset.toggleTeam) {
+        toggleCode(button.dataset.toggleTeam, button.dataset.code, button.dataset.uncertain === "true");
+      } else if (button.dataset.code) {
+        removeCode(button.dataset.removeTeam, button.dataset.code, button.dataset.uncertain === "true");
+      } else if (button.dataset.removeTeam) {
+        removeTeam(button.dataset.removeTeam);
+      }
+    });
+    teamsList.addEventListener("submit", event => {
+      event.preventDefault();
+      const form = event.target;
+      addCode(form.dataset.addCode, form.elements.code.value, form.elements.uncertain.checked);
+    });
+    render();
+  </script>
+</body>
+</html>
+
