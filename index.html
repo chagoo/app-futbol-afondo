@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Estampas faltantes - Album FIFA World Cup 2026</title>
+  <title>Estampas para intercambio - Album FIFA World Cup 2026</title>
   <style>
     :root {
       color-scheme: light;
@@ -59,6 +59,24 @@
       gap: 10px;
       align-items: center;
       padding: 16px 0;
+    }
+
+    .view-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 16px 0 0;
+    }
+
+    .view-tab {
+      border-color: var(--line);
+      color: var(--muted);
+    }
+
+    .view-tab.active {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
     }
 
     input, select, button {
@@ -213,6 +231,10 @@
       height: 16px;
     }
 
+    .editor input[type="number"] {
+      width: 76px;
+    }
+
     .notes {
       margin: 18px 0;
       padding: 12px 14px;
@@ -221,6 +243,51 @@
       background: #fff8e3;
       color: #5b4100;
       line-height: 1.45;
+    }
+
+    .auth-panel,
+    .exchange-panel {
+      margin: 14px 0 0;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+    }
+
+    .auth-panel form,
+    .auth-actions,
+    .exchange-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .auth-panel input {
+      min-width: 180px;
+    }
+
+    .session-name {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .exchange-panel textarea {
+      width: 100%;
+      min-height: 76px;
+      margin: 10px 0;
+      padding: 10px 12px;
+      resize: vertical;
+    }
+
+    .selected {
+      border-color: var(--green);
+      background: #eaf8f1;
+      color: #155d3c;
+    }
+
+    .hidden {
+      display: none !important;
     }
 
     @media (max-width: 720px) {
@@ -237,12 +304,33 @@
 <body>
   <header>
     <div class="wrap">
-      <h1>Estampas faltantes</h1>
-      <p class="subtitle">Album FIFA World Cup 2026. Lista generada desde el video del album y acompanada con fotos de las paginas para confirmar o compartir al intercambiar.</p>
+      <h1>Estampas para intercambio</h1>
+      <p class="subtitle">Album FIFA World Cup 2026. Mira lo que me falta, revisa mis repetidas y manda una propuesta de intercambio iniciando sesion.</p>
     </div>
   </header>
 
   <main class="wrap">
+    <section class="auth-panel" aria-label="Sesion">
+      <form id="authForm">
+        <input id="email" type="email" placeholder="Correo" autocomplete="email">
+        <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+        <button class="primary" type="submit">Entrar</button>
+        <button id="register" type="button">Crear cuenta</button>
+      </form>
+      <div class="auth-actions">
+        <button id="google" type="button">Entrar con Google</button>
+        <button id="github" type="button">Entrar con GitHub</button>
+        <button id="logout" type="button" class="hidden">Salir</button>
+        <span id="sessionName" class="session-name"></span>
+      </div>
+    </section>
+
+    <section class="view-tabs" aria-label="Secciones">
+      <button class="view-tab active" type="button" data-view="missing">Me faltan</button>
+      <button class="view-tab" type="button" data-view="duplicates">Tengo repetidas</button>
+      <button class="view-tab" type="button" data-view="exchanges">Intercambios</button>
+    </section>
+
     <section class="toolbar" aria-label="Filtros">
       <input id="search" type="search" placeholder="Buscar equipo o codigo, ejemplo: MEX, BRA 18, Alemania">
       <select id="status">
@@ -256,14 +344,24 @@
     </section>
 
     <section class="stats" aria-label="Resumen">
-      <div class="stat"><strong id="total">0</strong><span>faltantes visibles</span></div>
-      <div class="stat"><strong id="teams">0</strong><span>equipos/secciones</span></div>
-      <div class="stat"><strong id="uncertain">0</strong><span>por confirmar por reflejo</span></div>
+      <div class="stat"><strong id="total">0</strong><span id="totalLabel">faltantes visibles</span></div>
+      <div class="stat"><strong id="teams">0</strong><span id="teamsLabel">equipos/secciones</span></div>
+      <div class="stat"><strong id="uncertain">0</strong><span id="uncertainLabel">por confirmar por reflejo</span></div>
     </section>
 
-    <p class="notes">Los codigos con borde punteado son los que el video deja con reflejo o movimiento. Sirven como primera lista para intercambiar, pero conviene verificarlos viendo la foto de la pagina.</p>
+    <p class="notes" id="notes">Los codigos con borde punteado son los que el video deja con reflejo o movimiento. Sirven como primera lista para intercambiar, pero conviene verificarlos viendo la foto de la pagina.</p>
 
     <section id="teamsList" class="teams" aria-label="Lista de faltantes"></section>
+
+    <section id="exchangePanel" class="exchange-panel">
+      <strong>Propuesta de intercambio</strong>
+      <p id="exchangeSummary">Inicia sesion para marcar que repetidas quieres y que faltantes puedes darme.</p>
+      <textarea id="exchangeNote" placeholder="Nota opcional para coordinar el intercambio"></textarea>
+      <div class="exchange-actions">
+        <button id="submitExchange" class="primary" type="button">Enviar propuesta</button>
+        <button id="clearExchange" type="button">Limpiar seleccion</button>
+      </div>
+    </section>
 
   </main>
 
@@ -307,95 +405,215 @@
       { team: "Panama", codes: ["PAN 1", "PAN 2"], uncertain: ["PAN 5", "PAN 13"] }
     ];
 
-    const storageKey = "album-faltantes-v1";
-    let missing = loadMissing();
+    const defaultDuplicates = [
+      { team: "Qatar", codes: [
+        { code: "QAT 3", quantity: 1 },
+        { code: "QAT 10", quantity: 2 },
+        { code: "QAT 12", quantity: 1 },
+        { code: "QAT 14", quantity: 1 },
+        { code: "QAT 16", quantity: 1 }
+      ] }
+    ];
+
+    const API_BASE_URL = "https://jbnjx92x.us-east.insforge.app";
+    const SESSION_KEY = "album-insforge-session-v1";
+    const OAUTH_KEY = "album-insforge-oauth-v1";
+    let currentView = "missing";
+    let session = loadJson(SESSION_KEY, null);
+    let oauthState = loadJson(OAUTH_KEY, null);
+    let missing = structuredClone(defaultMissing);
+    let duplicates = structuredClone(defaultDuplicates);
+    let exchangeRequests = [];
+    let exchangeItems = [];
+    let isAdmin = false;
+    let selectedWants = new Set();
+    let selectedGives = new Set();
 
     const teamsList = document.querySelector("#teamsList");
     const search = document.querySelector("#search");
     const status = document.querySelector("#status");
+    const notes = document.querySelector("#notes");
+    const exchangePanel = document.querySelector("#exchangePanel");
+    const exchangeSummary = document.querySelector("#exchangeSummary");
+    const exchangeNote = document.querySelector("#exchangeNote");
+    const submitExchangeButton = document.querySelector("#submitExchange");
 
     function allCodes(item) {
       return [
-        ...item.codes.map(code => ({ code, uncertain: false })),
-        ...(item.uncertain || []).map(code => ({ code, uncertain: true }))
+        ...item.codes.map(entry => typeof entry === "string" ? { code: entry, uncertain: false } : entry),
+        ...(item.uncertain || []).map(entry => typeof entry === "string" ? { code: entry, uncertain: true } : entry)
       ];
     }
 
-    function loadMissing() {
+    async function boot() {
+      await handleOAuthCallback();
+      await refreshFromBackend();
+      bindEvents();
+      render();
+    }
+
+    async function refreshFromBackend() {
+      renderAuth();
+      await checkAdmin();
+      await loadStickers();
+      if (currentView === "exchanges") await loadExchanges();
+    }
+
+    async function loadStickers() {
       try {
-        const saved = JSON.parse(localStorage.getItem(storageKey));
-        if (Array.isArray(saved)) return mergeSavedWithDefaults(saved);
+        if (!session?.accessToken) throw new Error("public-fallback");
+        const rows = await request("/api/database/records/album_stickers?order=sort_order.asc,team.asc,code.asc", {
+          headers: authHeaders()
+        });
+        setListsFromRows(Array.isArray(rows) ? rows : []);
+        notes.textContent = "Datos cargados desde InsForge. Los visitantes pueden ver la lista; al iniciar sesion pueden proponer intercambios.";
+        notes.classList.add("ok");
       } catch (error) {
-        console.warn("No se pudo cargar la lista guardada", error);
+        missing = structuredClone(defaultMissing);
+        duplicates = structuredClone(defaultDuplicates);
+        notes.textContent = "Vista publica con la base inicial. Para datos en vivo, propuestas y administracion, inicia sesion.";
+        notes.classList.remove("ok");
       }
-      return structuredClone(defaultMissing);
     }
 
-    function mergeSavedWithDefaults(saved) {
-      const savedByTeam = new Map(saved.map(item => [item.team, item]));
-      const merged = defaultMissing.map(item => savedByTeam.get(item.team) || structuredClone(item));
-      const defaultTeams = new Set(defaultMissing.map(item => item.team));
-      const customTeams = saved.filter(item => !defaultTeams.has(item.team));
-      return [...merged, ...customTeams];
+    function setListsFromRows(rows) {
+      const missingMap = new Map();
+      const duplicateMap = new Map();
+      rows.forEach(row => {
+        const map = row.list_type === "duplicate" ? duplicateMap : missingMap;
+        if (!map.has(row.team)) map.set(row.team, { team: row.team, codes: [], uncertain: [] });
+        const group = map.get(row.team);
+        if (row.list_type === "duplicate") {
+          group.codes.push({ id: row.id, code: row.code, quantity: row.quantity || 1 });
+        } else if (row.uncertain) {
+          group.uncertain.push({ id: row.id, code: row.code, uncertain: true });
+        } else {
+          group.codes.push({ id: row.id, code: row.code, uncertain: false });
+        }
+      });
+      missing = [...missingMap.values()];
+      duplicates = [...duplicateMap.values()];
     }
 
-    function saveMissing() {
-      localStorage.setItem(storageKey, JSON.stringify(missing));
+    async function checkAdmin() {
+      isAdmin = false;
+      const user = getUser();
+      if (!session?.accessToken || !user?.email) return;
+      try {
+        const rows = await request(`/api/database/records/album_admins?email=eq.${encodeURIComponent(user.email.toLowerCase())}`, {
+          headers: authHeaders()
+        });
+        isAdmin = Array.isArray(rows) && rows.length > 0;
+      } catch {
+        isAdmin = false;
+      }
+    }
+
+    async function loadExchanges() {
+      if (!session?.accessToken) return;
+      exchangeRequests = await request("/api/database/records/exchange_requests?order=created_at.desc", { headers: authHeaders() }) || [];
+      exchangeItems = await request("/api/database/records/exchange_items?order=created_at.asc", { headers: authHeaders() }) || [];
     }
 
     function normalizeCode(value) {
       return value.trim().replace(/\s+/g, " ").toUpperCase();
     }
 
-    function removeCode(teamName, code, isUncertain) {
-      const item = missing.find(entry => entry.team === teamName);
-      if (!item) return;
-      const field = isUncertain ? "uncertain" : "codes";
-      item[field] = (item[field] || []).filter(entry => entry !== code);
-      saveMissing();
+    async function removeCode(id) {
+      if (!isAdmin || !id) return;
+      await request(`/api/database/records/album_stickers?id=eq.${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        headers: authHeaders()
+      });
+      await refreshFromBackend();
       render();
     }
 
-    function toggleCode(teamName, code, isUncertain) {
-      const item = missing.find(entry => entry.team === teamName);
-      if (!item) return;
-      const from = isUncertain ? "uncertain" : "codes";
-      const to = isUncertain ? "codes" : "uncertain";
-      item[from] = (item[from] || []).filter(entry => entry !== code);
-      item[to] = [...(item[to] || []), code].sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
-      saveMissing();
+    async function toggleCode(id, uncertain) {
+      if (!isAdmin || !id) return;
+      await request(`/api/database/records/album_stickers?id=eq.${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: authHeaders(),
+        body: JSON.stringify({ uncertain: !uncertain })
+      });
+      await refreshFromBackend();
       render();
     }
 
-    function addCode(teamName, code, isUncertain) {
-      const item = missing.find(entry => entry.team === teamName);
+    async function addCode(teamName, code, isUncertain) {
       const clean = normalizeCode(code);
-      if (!item || !clean) return;
-      item.codes = (item.codes || []).filter(entry => entry !== clean);
-      item.uncertain = (item.uncertain || []).filter(entry => entry !== clean);
-      const field = isUncertain ? "uncertain" : "codes";
-      item[field] = [...(item[field] || []), clean].sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
-      saveMissing();
+      if (!isAdmin || !teamName || !clean) return;
+      await request("/api/database/records/album_stickers", {
+        method: "POST",
+        headers: { ...authHeaders(), Prefer: "return=representation" },
+        body: JSON.stringify([{ team: teamName, code: clean, list_type: "missing", uncertain: Boolean(isUncertain), quantity: 1, sort_order: Date.now() % 100000 }])
+      });
+      await refreshFromBackend();
       render();
     }
 
-    function addTeam() {
+    async function addTeam() {
       const team = prompt("Nombre del equipo o seccion:");
-      if (!team || !team.trim()) return;
+      if (!isAdmin || !team || !team.trim()) return;
       const clean = team.trim();
-      if (!missing.some(item => item.team.toLowerCase() === clean.toLowerCase())) {
-        missing.push({ team: clean, codes: [], uncertain: [] });
-        missing.sort((a, b) => a.team.localeCompare(b.team, "es"));
-        saveMissing();
+      const code = prompt("Codigo de estampa:");
+      if (!code || !code.trim()) return;
+      if (currentView === "duplicates") await addDuplicate(clean, code, 1);
+      else await addCode(clean, code, false);
+      render();
+    }
+
+    async function removeTeam(teamName) {
+      if (!isAdmin || !confirm(`Quitar ${teamName} de la lista?`)) return;
+      await request(`/api/database/records/album_stickers?team=eq.${encodeURIComponent(teamName)}&list_type=eq.missing`, {
+        method: "DELETE",
+        headers: authHeaders()
+      });
+      await refreshFromBackend();
+      render();
+    }
+
+    async function removeDuplicateTeam(teamName) {
+      if (!isAdmin || !confirm(`Quitar ${teamName} de repetidas?`)) return;
+      await request(`/api/database/records/album_stickers?team=eq.${encodeURIComponent(teamName)}&list_type=eq.duplicate`, {
+        method: "DELETE",
+        headers: authHeaders()
+      });
+      await refreshFromBackend();
+      render();
+    }
+
+    async function addDuplicate(teamName, code, quantity) {
+      const clean = normalizeCode(code);
+      const amount = Math.max(1, Number(quantity) || 1);
+      if (!isAdmin || !teamName || !clean) return;
+      await request("/api/database/records/album_stickers", {
+        method: "POST",
+        headers: { ...authHeaders(), Prefer: "return=representation" },
+        body: JSON.stringify([{ team: teamName, code: clean, list_type: "duplicate", uncertain: false, quantity: amount, sort_order: Date.now() % 100000 }])
+      });
+      await refreshFromBackend();
+      render();
+    }
+
+    async function changeDuplicate(id, quantity, delta) {
+      if (!isAdmin || !id) return;
+      const next = Number(quantity || 1) + delta;
+      if (next <= 0) {
+        await removeCode(id);
+      } else {
+        await request(`/api/database/records/album_stickers?id=eq.${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: authHeaders(),
+          body: JSON.stringify({ quantity: next })
+        });
+        await refreshFromBackend();
       }
       render();
     }
 
-    function removeTeam(teamName) {
-      if (!confirm(`Quitar ${teamName} de la lista?`)) return;
-      missing = missing.filter(item => item.team !== teamName);
-      saveMissing();
-      render();
+    function entryId(entry) {
+      return entry.id || "";
     }
 
     function filteredData() {
@@ -413,25 +631,52 @@
         .filter(item => item.filteredCodes.length || (!q && mode === "all"));
     }
 
+    function filteredDuplicates() {
+      const q = search.value.trim().toLowerCase();
+      return duplicates
+        .map(item => ({
+          ...item,
+          filteredCodes: item.codes.filter(entry => !q || item.team.toLowerCase().includes(q) || entry.code.toLowerCase().includes(q))
+        }))
+        .filter(item => item.filteredCodes.length || !q);
+    }
+
     function render() {
+      document.querySelectorAll(".view-tab").forEach(button => {
+        button.classList.toggle("active", button.dataset.view === currentView);
+      });
+      status.style.display = currentView === "missing" ? "" : "none";
+      document.querySelector("#addTeam").classList.toggle("hidden", !isAdmin || currentView === "exchanges");
+      exchangePanel.classList.toggle("hidden", currentView === "exchanges");
+
+      if (currentView === "duplicates") {
+        renderDuplicates();
+        return;
+      }
+      if (currentView === "exchanges") {
+        renderExchanges();
+        return;
+      }
+
       const data = filteredData();
       teamsList.innerHTML = data.map(item => `
         <article class="team">
-          <h2>${item.team}<button type="button" data-remove-team="${item.team}">Quitar</button></h2>
+          <h2>${item.team}${isAdmin ? `<button type="button" data-remove-team="${item.team}">Quitar</button>` : ""}</h2>
           <div class="codes">
             ${item.filteredCodes.map(entry => `
-              <span class="code ${entry.uncertain ? "uncertain" : ""}">
+              <span class="code ${entry.uncertain ? "uncertain" : ""} ${selectedGives.has(entryId(entry)) ? "selected" : ""}">
                 ${entry.code}${entry.uncertain ? " ?" : ""}
-                <button type="button" title="Cambiar estado" data-toggle-team="${item.team}" data-code="${entry.code}" data-uncertain="${entry.uncertain}">~</button>
-                <button type="button" title="Quitar" data-remove-team="${item.team}" data-code="${entry.code}" data-uncertain="${entry.uncertain}">x</button>
+                ${session?.accessToken && !isAdmin ? `<button type="button" title="La puedo dar" data-select-give="${entryId(entry)}">+</button>` : ""}
+                ${isAdmin ? `<button type="button" title="Cambiar estado" data-toggle-id="${entryId(entry)}" data-uncertain="${entry.uncertain}">~</button>
+                <button type="button" title="Quitar" data-delete-id="${entryId(entry)}">x</button>` : ""}
               </span>
             `).join("")}
           </div>
-          <form class="editor" data-add-code="${item.team}">
+          ${isAdmin ? `<form class="editor" data-add-code="${item.team}">
             <input name="code" placeholder="Nueva falta, ej. MEX 11" autocomplete="off">
             <label><input name="uncertain" type="checkbox"> pendiente</label>
             <button type="submit">Agregar</button>
-          </form>
+          </form>` : ""}
         </article>
       `).join("");
 
@@ -440,9 +685,99 @@
       document.querySelector("#total").textContent = confirmed + uncertain;
       document.querySelector("#teams").textContent = missing.length;
       document.querySelector("#uncertain").textContent = uncertain;
+      document.querySelector("#totalLabel").textContent = "faltantes visibles";
+      document.querySelector("#teamsLabel").textContent = "equipos/secciones";
+      document.querySelector("#uncertainLabel").textContent = "por confirmar por reflejo";
+      renderExchangePanel();
+    }
+
+    function renderDuplicates() {
+      const data = filteredDuplicates();
+      teamsList.innerHTML = data.map(item => `
+        <article class="team">
+          <h2>${item.team}${isAdmin ? `<button type="button" data-remove-duplicate-team="${item.team}">Quitar</button>` : ""}</h2>
+          <div class="codes">
+            ${item.filteredCodes.map(entry => `
+              <span class="code ${selectedWants.has(entryId(entry)) ? "selected" : ""}">
+                ${entry.code} x${entry.quantity}
+                ${session?.accessToken && !isAdmin ? `<button type="button" title="La quiero" data-select-want="${entryId(entry)}">+</button>` : ""}
+                ${isAdmin ? `<button type="button" title="Sumar una" data-duplicate-plus="${entryId(entry)}" data-quantity="${entry.quantity}">+</button>
+                <button type="button" title="Restar una" data-duplicate-minus="${entryId(entry)}" data-quantity="${entry.quantity}">-</button>
+                <button type="button" title="Quitar" data-delete-id="${entryId(entry)}">x</button>` : ""}
+              </span>
+            `).join("")}
+          </div>
+          ${isAdmin ? `<form class="editor" data-add-duplicate="${item.team}">
+            <input name="code" placeholder="Repetida, ej. QAT 10" autocomplete="off">
+            <input name="quantity" type="number" min="1" value="1" aria-label="Cantidad">
+            <button type="submit">Agregar</button>
+          </form>` : ""}
+        </article>
+      `).join("");
+
+      const total = duplicates.flatMap(item => item.codes).reduce((sum, entry) => sum + entry.quantity, 0);
+      document.querySelector("#total").textContent = total;
+      document.querySelector("#teams").textContent = duplicates.length;
+      document.querySelector("#uncertain").textContent = duplicates.flatMap(item => item.codes).length;
+      document.querySelector("#totalLabel").textContent = "repetidas disponibles";
+      document.querySelector("#teamsLabel").textContent = "equipos con repetidas";
+      document.querySelector("#uncertainLabel").textContent = "codigos distintos";
+      renderExchangePanel();
+    }
+
+    function renderExchangePanel() {
+      const wants = listEntries(duplicates).filter(entry => selectedWants.has(entry.id));
+      const gives = listEntries(missing).filter(entry => selectedGives.has(entry.id));
+      const total = wants.length + gives.length;
+      document.querySelector("#selectedTotal").textContent = total;
+      exchangeSummary.innerHTML = session?.accessToken && !isAdmin
+        ? `Seleccionadas: ${total}<br>${wants.map(entry => `Quiero ${entry.team} ${entry.code}`).join("<br>")}${gives.length ? "<br>" : ""}${gives.map(entry => `Puedo dar ${entry.team} ${entry.code}`).join("<br>")}`
+        : "Inicia sesion para marcar que repetidas quieres y que faltantes puedes darme.";
+      submitExchangeButton.disabled = !session?.accessToken || isAdmin || total === 0;
+    }
+
+    function renderExchanges() {
+      exchangePanel.classList.add("hidden");
+      if (!session?.accessToken) {
+        teamsList.innerHTML = `<article class="team"><div class="codes">Inicia sesion para ver tus propuestas.</div></article>`;
+      } else if (!exchangeRequests.length) {
+        teamsList.innerHTML = `<article class="team"><div class="codes">Todavia no hay propuestas.</div></article>`;
+      } else {
+        teamsList.innerHTML = exchangeRequests.map(request => {
+        const items = exchangeItems.filter(item => item.request_id === request.id);
+          const wants = items.filter(item => item.direction === "wants_from_owner").map(item => `${escapeHtml(item.team)} ${escapeHtml(item.code)}`).join(", ");
+          const gives = items.filter(item => item.direction === "gives_to_owner").map(item => `${escapeHtml(item.team)} ${escapeHtml(item.code)}`).join(", ");
+          return `<article class="team">
+            <h2>${escapeHtml(request.user_email)} <span>${escapeHtml(request.status)}</span></h2>
+            <div class="codes">
+              <span class="code">Quiere: ${wants || "sin seleccion"}</span>
+              <span class="code">Da: ${gives || "sin seleccion"}</span>
+              ${request.note ? `<span class="code">${escapeHtml(request.note)}</span>` : ""}
+              ${isAdmin ? `<button type="button" data-request="${request.id}" data-status="accepted">Aceptar</button><button type="button" data-request="${request.id}" data-status="closed">Cerrar</button>` : ""}
+            </div>
+          </article>`;
+        }).join("");
+      }
+      document.querySelector("#total").textContent = exchangeRequests.length;
+      document.querySelector("#teams").textContent = exchangeItems.length;
+      document.querySelector("#uncertain").textContent = exchangeRequests.filter(item => item.status === "submitted").length;
+      document.querySelector("#totalLabel").textContent = "propuestas";
+      document.querySelector("#teamsLabel").textContent = "estampas en propuestas";
+      document.querySelector("#uncertainLabel").textContent = "pendientes";
     }
 
     function copyList() {
+      if (currentView === "duplicates") {
+        const lines = duplicates.map(item => {
+          const repeated = item.codes.map(entry => `${entry.code} x${entry.quantity}`).join(", ");
+          return `${item.team}: ${repeated}`;
+        });
+        navigator.clipboard.writeText(`Tengo estas estampas repetidas para intercambio:\n${lines.join("\n")}`);
+        document.querySelector("#copy").textContent = "Lista copiada";
+        setTimeout(() => document.querySelector("#copy").textContent = "Copiar lista", 1500);
+        return;
+      }
+
       const lines = missing.map(item => {
         const confirmed = item.codes.join(", ");
         const uncertain = (item.uncertain || []).map(code => `${code}?`).join(", ");
@@ -453,33 +788,260 @@
       setTimeout(() => document.querySelector("#copy").textContent = "Copiar lista", 1500);
     }
 
-    search.addEventListener("input", render);
-    status.addEventListener("change", render);
-    document.querySelector("#copy").addEventListener("click", copyList);
-    document.querySelector("#addTeam").addEventListener("click", addTeam);
-    document.querySelector("#reset").addEventListener("click", () => {
-      if (!confirm("Restaurar la lista original? Se perderan los cambios guardados en este navegador.")) return;
-      localStorage.removeItem(storageKey);
-      missing = structuredClone(defaultMissing);
-      render();
-    });
-    teamsList.addEventListener("click", event => {
+    function bindEvents() {
+      document.querySelectorAll(".view-tab").forEach(button => {
+        button.addEventListener("click", async () => {
+          currentView = button.dataset.view;
+          if (currentView === "exchanges") await loadExchanges();
+          render();
+        });
+      });
+      search.addEventListener("input", render);
+      status.addEventListener("change", render);
+      document.querySelector("#copy").addEventListener("click", copyList);
+      document.querySelector("#addTeam").addEventListener("click", addTeam);
+      document.querySelector("#reset").classList.add("hidden");
+      document.querySelector("#authForm").addEventListener("submit", async event => {
+        event.preventDefault();
+        await loginUser();
+      });
+      document.querySelector("#register").addEventListener("click", registerUser);
+      document.querySelector("#google").addEventListener("click", () => startOAuth("google"));
+      document.querySelector("#github").addEventListener("click", () => startOAuth("github"));
+      document.querySelector("#logout").addEventListener("click", async () => {
+        session = null;
+        isAdmin = false;
+        localStorage.removeItem(SESSION_KEY);
+        selectedWants.clear();
+        selectedGives.clear();
+        await refreshFromBackend();
+        render();
+      });
+      document.querySelector("#clearExchange").addEventListener("click", () => {
+        selectedWants.clear();
+        selectedGives.clear();
+        render();
+      });
+      document.querySelector("#submitExchange").addEventListener("click", submitExchange);
+      teamsList.addEventListener("click", handleTeamClick);
+      teamsList.addEventListener("submit", handleTeamSubmit);
+    }
+
+    async function handleTeamClick(event) {
       const button = event.target.closest("button");
       if (!button) return;
-      if (button.dataset.toggleTeam) {
-        toggleCode(button.dataset.toggleTeam, button.dataset.code, button.dataset.uncertain === "true");
-      } else if (button.dataset.code) {
-        removeCode(button.dataset.removeTeam, button.dataset.code, button.dataset.uncertain === "true");
+      if (button.dataset.selectWant) {
+        toggleSet(selectedWants, button.dataset.selectWant);
+        render();
+      } else if (button.dataset.selectGive) {
+        toggleSet(selectedGives, button.dataset.selectGive);
+        render();
+      } else if (button.dataset.duplicatePlus) {
+        await changeDuplicate(button.dataset.duplicatePlus, button.dataset.quantity, 1);
+      } else if (button.dataset.duplicateMinus) {
+        await changeDuplicate(button.dataset.duplicateMinus, button.dataset.quantity, -1);
+      } else if (button.dataset.deleteId) {
+        await removeCode(button.dataset.deleteId);
+      } else if (button.dataset.removeDuplicateTeam) {
+        await removeDuplicateTeam(button.dataset.removeDuplicateTeam);
+      } else if (button.dataset.toggleId) {
+        await toggleCode(button.dataset.toggleId, button.dataset.uncertain === "true");
+      } else if (button.dataset.request) {
+        await updateExchangeStatus(button.dataset.request, button.dataset.status);
+      } else if (button.dataset.toggleTeam) {
+        await toggleCode(button.dataset.toggleTeam, button.dataset.uncertain === "true");
       } else if (button.dataset.removeTeam) {
-        removeTeam(button.dataset.removeTeam);
+        await removeTeam(button.dataset.removeTeam);
       }
-    });
-    teamsList.addEventListener("submit", event => {
+    }
+
+    async function handleTeamSubmit(event) {
       event.preventDefault();
       const form = event.target;
-      addCode(form.dataset.addCode, form.elements.code.value, form.elements.uncertain.checked);
-    });
-    render();
+      if (form.dataset.addDuplicate) {
+        await addDuplicate(form.dataset.addDuplicate, form.elements.code.value, form.elements.quantity.value);
+      } else {
+        await addCode(form.dataset.addCode, form.elements.code.value, form.elements.uncertain.checked);
+      }
+    }
+
+    async function loginUser() {
+      try {
+        const data = await request("/api/auth/sessions?client_type=desktop", {
+          method: "POST",
+          body: JSON.stringify({ email: document.querySelector("#email").value.trim(), password: document.querySelector("#password").value })
+        });
+        saveSession(data);
+        await refreshFromBackend();
+        render();
+      } catch (error) {
+        notes.textContent = `No pude iniciar sesion: ${error.message}`;
+      }
+    }
+
+    async function registerUser() {
+      try {
+        const data = await request("/api/auth/users?client_type=desktop", {
+          method: "POST",
+          body: JSON.stringify({ email: document.querySelector("#email").value.trim(), password: document.querySelector("#password").value })
+        });
+        saveSession(data);
+        await refreshFromBackend();
+        render();
+      } catch (error) {
+        notes.textContent = `No pude crear la cuenta: ${error.message}`;
+      }
+    }
+
+    async function startOAuth(provider) {
+      const codeVerifier = randomString(64);
+      const codeChallenge = await sha256Base64Url(codeVerifier);
+      const redirectUri = window.location.href.split("?")[0];
+      oauthState = { codeVerifier, provider };
+      localStorage.setItem(OAUTH_KEY, JSON.stringify(oauthState));
+      const data = await request(`/api/auth/oauth/${provider}?redirect_uri=${encodeURIComponent(redirectUri)}&code_challenge=${encodeURIComponent(codeChallenge)}`);
+      window.location.href = data.authUrl || data.url || data.data?.url;
+    }
+
+    async function handleOAuthCallback() {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("insforge_code");
+      if (!code) return;
+      const state = loadJson(OAUTH_KEY, null);
+      const data = await request("/api/auth/oauth/exchange?client_type=desktop", {
+        method: "POST",
+        body: JSON.stringify({ code, code_verifier: state?.codeVerifier })
+      });
+      saveSession(data);
+      localStorage.removeItem(OAUTH_KEY);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    async function submitExchange() {
+      const selected = [...selectedWants, ...selectedGives];
+      const user = getUser();
+      if (!session?.accessToken || !selected.length || !user?.email) return;
+      const created = await request("/api/database/records/exchange_requests", {
+        method: "POST",
+        headers: { ...authHeaders(), Prefer: "return=representation" },
+        body: JSON.stringify([{ user_id: user.id || user.sub, user_email: user.email, note: exchangeNote.value.trim(), status: "submitted" }])
+      });
+      const requestId = created?.[0]?.id;
+      const rows = [
+        ...listEntries(duplicates).filter(entry => selectedWants.has(entry.id)).map(entry => ({ request_id: requestId, direction: "wants_from_owner", team: entry.team, code: entry.code, quantity: 1 })),
+        ...listEntries(missing).filter(entry => selectedGives.has(entry.id)).map(entry => ({ request_id: requestId, direction: "gives_to_owner", team: entry.team, code: entry.code, quantity: 1 }))
+      ];
+      await request("/api/database/records/exchange_items", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(rows)
+      });
+      selectedWants.clear();
+      selectedGives.clear();
+      exchangeNote.value = "";
+      currentView = "exchanges";
+      await loadExchanges();
+      render();
+    }
+
+    async function updateExchangeStatus(id, nextStatus) {
+      if (!isAdmin) return;
+      await request(`/api/database/records/exchange_requests?id=eq.${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: authHeaders(),
+        body: JSON.stringify({ status: nextStatus })
+      });
+      await loadExchanges();
+      render();
+    }
+
+    async function request(path, options = {}) {
+      const response = await fetch(`${API_BASE_URL}${path}`, {
+        ...options,
+        headers: { "Content-Type": "application/json", ...(options.headers || {}) }
+      });
+      const text = await response.text();
+      const data = parseResponse(text);
+      if (!response.ok) throw new Error(`${response.status} ${data?.message || data?.error || response.statusText}`);
+      return data;
+    }
+
+    function authHeaders() {
+      return session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {};
+    }
+
+    function saveSession(data) {
+      const accessToken = data?.accessToken || data?.data?.accessToken;
+      const refreshToken = data?.refreshToken || data?.data?.refreshToken;
+      const user = data?.user || data?.data?.user || parseJwt(accessToken);
+      session = { accessToken, refreshToken, user };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    }
+
+    function renderAuth() {
+      const signedIn = Boolean(session?.accessToken);
+      const user = getUser();
+      document.querySelector("#authForm").classList.toggle("hidden", signedIn);
+      document.querySelector("#register").classList.toggle("hidden", signedIn);
+      document.querySelector("#google").classList.toggle("hidden", signedIn);
+      document.querySelector("#github").classList.toggle("hidden", signedIn);
+      document.querySelector("#logout").classList.toggle("hidden", !signedIn);
+      document.querySelector("#sessionName").textContent = signedIn ? `${user?.email || "Usuario"}${isAdmin ? " - admin" : ""}` : "";
+    }
+
+    function getUser() {
+      return session?.user || parseJwt(session?.accessToken);
+    }
+
+    function listEntries(list) {
+      return list.flatMap(item => allCodes(item).map(entry => ({ ...entry, team: item.team })));
+    }
+
+    function toggleSet(set, value) {
+      set.has(value) ? set.delete(value) : set.add(value);
+    }
+
+    function loadJson(key, fallback) {
+      try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; }
+    }
+
+    function parseResponse(text) {
+      if (!text) return null;
+      try { return JSON.parse(text); } catch { return { message: text }; }
+    }
+
+    function parseJwt(token) {
+      if (!token) return null;
+      try {
+        const payload = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+        return JSON.parse(atob(payload));
+      } catch {
+        return null;
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function randomString(length) {
+      const bytes = new Uint8Array(length);
+      crypto.getRandomValues(bytes);
+      return Array.from(bytes, byte => ("0" + (byte % 36).toString(36)).slice(-1)).join("");
+    }
+
+    async function sha256Base64Url(value) {
+      const data = new TextEncoder().encode(value);
+      const hash = await crypto.subtle.digest("SHA-256", data);
+      return btoa(String.fromCharCode(...new Uint8Array(hash))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    }
+
+    boot();
   </script>
 </body>
 </html>
