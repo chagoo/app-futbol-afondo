@@ -280,6 +280,10 @@
       resize: vertical;
     }
 
+    .exchange-panel p {
+      white-space: pre-line;
+    }
+
     .selected {
       border-color: var(--green);
       background: #eaf8f1;
@@ -661,18 +665,18 @@
       const data = filteredData();
       teamsList.innerHTML = data.map(item => `
         <article class="team">
-          <h2>${item.team}${isAdmin ? `<button type="button" data-remove-team="${item.team}">Quitar</button>` : ""}</h2>
+          <h2>${escapeHtml(item.team)}${isAdmin ? `<button type="button" data-remove-team="${escapeAttr(item.team)}">Quitar</button>` : ""}</h2>
           <div class="codes">
             ${item.filteredCodes.map(entry => `
               <span class="code ${entry.uncertain ? "uncertain" : ""} ${selectedGives.has(entryId(entry)) ? "selected" : ""}">
-                ${entry.code}${entry.uncertain ? " ?" : ""}
-                ${session?.accessToken && !isAdmin ? `<button type="button" title="La puedo dar" data-select-give="${entryId(entry)}">+</button>` : ""}
-                ${isAdmin ? `<button type="button" title="Cambiar estado" data-toggle-id="${entryId(entry)}" data-uncertain="${entry.uncertain}">~</button>
-                <button type="button" title="Quitar" data-delete-id="${entryId(entry)}">x</button>` : ""}
+                ${escapeHtml(entry.code)}${entry.uncertain ? " ?" : ""}
+                ${session?.accessToken && !isAdmin ? `<button type="button" title="La puedo dar" data-select-give="${escapeAttr(entryId(entry))}">+</button>` : ""}
+                ${isAdmin ? `<button type="button" title="Cambiar estado" data-toggle-id="${escapeAttr(entryId(entry))}" data-uncertain="${entry.uncertain}">~</button>
+                <button type="button" title="Quitar" data-delete-id="${escapeAttr(entryId(entry))}">x</button>` : ""}
               </span>
             `).join("")}
           </div>
-          ${isAdmin ? `<form class="editor" data-add-code="${item.team}">
+          ${isAdmin ? `<form class="editor" data-add-code="${escapeAttr(item.team)}">
             <input name="code" placeholder="Nueva falta, ej. MEX 11" autocomplete="off">
             <label><input name="uncertain" type="checkbox"> pendiente</label>
             <button type="submit">Agregar</button>
@@ -695,19 +699,19 @@
       const data = filteredDuplicates();
       teamsList.innerHTML = data.map(item => `
         <article class="team">
-          <h2>${item.team}${isAdmin ? `<button type="button" data-remove-duplicate-team="${item.team}">Quitar</button>` : ""}</h2>
+          <h2>${escapeHtml(item.team)}${isAdmin ? `<button type="button" data-remove-duplicate-team="${escapeAttr(item.team)}">Quitar</button>` : ""}</h2>
           <div class="codes">
             ${item.filteredCodes.map(entry => `
               <span class="code ${selectedWants.has(entryId(entry)) ? "selected" : ""}">
-                ${entry.code} x${entry.quantity}
-                ${session?.accessToken && !isAdmin ? `<button type="button" title="La quiero" data-select-want="${entryId(entry)}">+</button>` : ""}
-                ${isAdmin ? `<button type="button" title="Sumar una" data-duplicate-plus="${entryId(entry)}" data-quantity="${entry.quantity}">+</button>
-                <button type="button" title="Restar una" data-duplicate-minus="${entryId(entry)}" data-quantity="${entry.quantity}">-</button>
-                <button type="button" title="Quitar" data-delete-id="${entryId(entry)}">x</button>` : ""}
+                ${escapeHtml(entry.code)} x${entry.quantity}
+                ${session?.accessToken && !isAdmin ? `<button type="button" title="La quiero" data-select-want="${escapeAttr(entryId(entry))}">+</button>` : ""}
+                ${isAdmin ? `<button type="button" title="Sumar una" data-duplicate-plus="${escapeAttr(entryId(entry))}" data-quantity="${entry.quantity}">+</button>
+                <button type="button" title="Restar una" data-duplicate-minus="${escapeAttr(entryId(entry))}" data-quantity="${entry.quantity}">-</button>
+                <button type="button" title="Quitar" data-delete-id="${escapeAttr(entryId(entry))}">x</button>` : ""}
               </span>
             `).join("")}
           </div>
-          ${isAdmin ? `<form class="editor" data-add-duplicate="${item.team}">
+          ${isAdmin ? `<form class="editor" data-add-duplicate="${escapeAttr(item.team)}">
             <input name="code" placeholder="Repetida, ej. QAT 10" autocomplete="off">
             <input name="quantity" type="number" min="1" value="1" aria-label="Cantidad">
             <button type="submit">Agregar</button>
@@ -730,8 +734,13 @@
       const gives = listEntries(missing).filter(entry => selectedGives.has(entry.id));
       const total = wants.length + gives.length;
       document.querySelector("#selectedTotal").textContent = total;
-      exchangeSummary.innerHTML = session?.accessToken && !isAdmin
-        ? `Seleccionadas: ${total}<br>${wants.map(entry => `Quiero ${entry.team} ${entry.code}`).join("<br>")}${gives.length ? "<br>" : ""}${gives.map(entry => `Puedo dar ${entry.team} ${entry.code}`).join("<br>")}`
+      const summaryLines = [
+        `Seleccionadas: ${total}`,
+        ...wants.map(entry => `Quiero ${entry.team} ${entry.code}`),
+        ...gives.map(entry => `Puedo dar ${entry.team} ${entry.code}`)
+      ];
+      exchangeSummary.textContent = session?.accessToken && !isAdmin
+        ? summaryLines.join("\n")
         : "Inicia sesion para marcar que repetidas quieres y que faltantes puedes darme.";
       submitExchangeButton.disabled = !session?.accessToken || isAdmin || total === 0;
     }
@@ -1027,6 +1036,10 @@
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value).replace(/`/g, "&#096;");
     }
 
     function randomString(length) {
