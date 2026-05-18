@@ -658,6 +658,7 @@
       });
       status.style.display = currentView === "missing" ? "" : "none";
       document.querySelector("#addTeam").classList.toggle("hidden", !isAdmin || currentView === "exchanges");
+      document.querySelector("#runSecurityTest").classList.toggle("hidden", !isAdmin || currentView === "exchanges");
       exchangePanel.classList.toggle("hidden", currentView === "exchanges");
 
       if (currentView === "duplicates") {
@@ -806,6 +807,8 @@
 
 
     function runSecurityE2ETest() {
+      if (!isAdmin) return;
+
       const payload = '<img src=x onerror="window.__xssFlag=1">';
       window.__xssFlag = 0;
       const rendered = `<span class="code">${escapeHtml(payload)}</span>`;
