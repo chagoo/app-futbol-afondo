@@ -55,7 +55,7 @@
 
     .toolbar {
       display: grid;
-      grid-template-columns: 1fr auto auto auto;
+      grid-template-columns: 1fr auto auto auto auto auto;
       gap: 10px;
       align-items: center;
       padding: 16px 0;
@@ -107,6 +107,12 @@
     button.danger {
       border-color: #cc3245;
       color: #cc3245;
+    }
+
+    button.jump {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
     }
 
     button:disabled {
@@ -248,6 +254,12 @@
       background: #fff8e3;
       color: #5b4100;
       line-height: 1.45;
+    }
+
+    .notes.ok {
+      border-color: #9bd3b5;
+      background: #eefaf3;
+      color: #155d3c;
     }
 
     .auth-panel,
@@ -429,6 +441,7 @@
         <option value="uncertain">Por confirmar</option>
       </select>
       <button id="addTeam">Agregar equipo</button>
+      <button class="jump" id="goToExchange" type="button">Ir a enviar</button>
       <button class="primary" id="copy">Copiar lista</button>
       <button class="danger" id="reset">Restaurar</button>
       <button id="runSecurityTest" type="button">Prueba E2E seguridad</button>
@@ -440,7 +453,7 @@
       <div class="stat"><strong id="uncertain">0</strong><span id="uncertainLabel">por confirmar por reflejo</span></div>
     </section>
 
-    <p class="notes" id="notes">Los codigos con borde punteado son los que el video deja con reflejo o movimiento. Sirven como primera lista para intercambiar, pero conviene verificarlos viendo la foto de la pagina.</p>
+    <p class="notes hidden" id="notes"></p>
 
     <section id="teamsList" class="teams" aria-label="Lista de faltantes"></section>
 
@@ -563,8 +576,7 @@
       bindEvents();
       render();
       if (oauthError) {
-        notes.textContent = oauthError;
-        notes.classList.remove("ok");
+        showNote(oauthError);
       }
       runSecurityE2ETest();
     }
@@ -583,16 +595,24 @@
           headers: authHeaders()
         });
         setListsFromRows(Array.isArray(rows) ? rows : []);
-        notes.textContent = session?.accessToken
-          ? "Datos cargados desde InsForge. Sesion activa."
-          : "Datos publicos cargados desde InsForge. Puedes enviar propuesta sin iniciar sesion; el login es solo para administrar.";
-        notes.classList.add("ok");
+        hideNote();
       } catch (error) {
         missing = structuredClone(defaultMissing);
         duplicates = structuredClone(defaultDuplicates);
-        notes.textContent = "Vista publica con la base inicial. Para datos en vivo, propuestas y administracion, inicia sesion.";
-        notes.classList.remove("ok");
+        showNote("No pude cargar los datos en vivo. Se muestra una copia inicial mientras se recupera la conexion.");
       }
+    }
+
+    function showNote(message, ok = false) {
+      notes.textContent = message;
+      notes.classList.toggle("ok", ok);
+      notes.classList.remove("hidden");
+    }
+
+    function hideNote() {
+      notes.textContent = "";
+      notes.classList.remove("ok");
+      notes.classList.add("hidden");
     }
 
     async function loadRequestCounts() {
@@ -970,10 +990,9 @@
       const escapedAttr = escapeAttr('" onmouseover="window.__xssFlag=1');
       const canBreakAttribute = escapedAttr.includes('" onmouseover=') || escapedAttr.includes("' onmouseover=");
       const passed = !hasRawTag && hasEscapedTag && !canBreakAttribute && window.__xssFlag === 0;
-      notes.textContent = passed
+      showNote(passed
         ? "Prueba E2E de seguridad: OK. Se bloquearon vectores XSS en HTML y atributos."
-        : "Prueba E2E de seguridad: FALLA. Revisa sanitizacion de HTML/atributos.";
-      notes.classList.toggle("ok", passed);
+        : "Prueba E2E de seguridad: FALLA. Revisa sanitizacion de HTML/atributos.", passed);
     }
 
     function bindEvents() {
@@ -989,6 +1008,7 @@
       requesterName.addEventListener("input", renderExchangePanel);
       requesterEmail.addEventListener("input", renderExchangePanel);
       document.querySelector("#copy").addEventListener("click", copyList);
+      document.querySelector("#goToExchange").addEventListener("click", goToExchange);
       document.querySelector("#copySelection").addEventListener("click", copySelection);
       document.querySelector("#addTeam").addEventListener("click", addTeam);
       document.querySelector("#reset").classList.add("hidden");
@@ -1017,6 +1037,20 @@
       document.querySelector("#submitExchange").addEventListener("click", submitExchange);
       teamsList.addEventListener("click", handleTeamClick);
       teamsList.addEventListener("submit", handleTeamSubmit);
+    }
+
+    function goToExchange() {
+      if (currentView === "exchanges") {
+        currentView = "duplicates";
+        render();
+      }
+      const scrollToForm = () => {
+        exchangePanel.classList.remove("hidden");
+        exchangePanel.scrollIntoView({ behavior: "smooth", block: "start" });
+      };
+      requestAnimationFrame(scrollToForm);
+      setTimeout(scrollToForm, 700);
+      setTimeout(scrollToForm, 2500);
     }
 
     async function handleTeamClick(event) {
@@ -1075,7 +1109,7 @@
         await refreshFromBackend();
         render();
       } catch (error) {
-        notes.textContent = `No pude iniciar sesion: ${error.message}`;
+        showNote(`No pude iniciar sesion: ${error.message}`);
       }
     }
 
@@ -1089,7 +1123,7 @@
         await refreshFromBackend();
         render();
       } catch (error) {
-        notes.textContent = `No pude crear la cuenta: ${error.message}`;
+        showNote(`No pude crear la cuenta: ${error.message}`);
       }
     }
 
@@ -1112,7 +1146,8 @@
       const state = loadJson(OAUTH_KEY, null);
       if (!state?.codeVerifier) {
         localStorage.removeItem(OAUTH_KEY);
-        throw new Error("No encontre la sesion temporal de Google. Vuelve a presionar Entrar con Google desde esta pagina publicada.");
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
       }
       if (returnedState && state?.state && returnedState !== state.state) {
         localStorage.removeItem(OAUTH_KEY);
@@ -1147,19 +1182,16 @@
       const name = requesterName.value.trim();
       const email = requesterEmail.value.trim().toLowerCase();
       if (!wants.length || !gives.length) {
-        notes.textContent = "Selecciona al menos una repetida que quieres y una faltante que puedes darme.";
-        notes.classList.remove("ok");
+        showNote("Selecciona al menos una repetida que quieres y una faltante que puedes darme.");
         return;
       }
       if (!name) {
-        notes.textContent = "Escribe tu nombre para enviar la propuesta.";
-        notes.classList.remove("ok");
+        showNote("Escribe tu nombre para enviar la propuesta.");
         requesterName.focus();
         return;
       }
       if (!isValidEmail(email)) {
-        notes.textContent = "Escribe un correo válido para poder coordinar el intercambio.";
-        notes.classList.remove("ok");
+        showNote("Escribe un correo válido para poder coordinar el intercambio.");
         requesterEmail.focus();
         return;
       }
@@ -1190,10 +1222,9 @@
       exchangeNote.value = "";
       requesterName.value = "";
       requesterEmail.value = "";
-      notes.textContent = "Propuesta enviada. Gracias, la revisaré para confirmar el intercambio.";
-      notes.classList.add("ok");
       await refreshFromBackend();
       render();
+      showNote("Propuesta enviada. Gracias, la revisaré para confirmar el intercambio.", true);
     }
 
     async function updateExchangeStatus(id, nextStatus) {
