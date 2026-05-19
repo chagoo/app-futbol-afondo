@@ -813,6 +813,7 @@
       document.querySelector("#addTeam").classList.toggle("hidden", !isAdmin || currentView === "exchanges");
       document.querySelector("#runSecurityTest").classList.toggle("hidden", !isAdmin || currentView === "exchanges");
       document.querySelector("#runSecurityTestV2").classList.toggle("hidden", !isAdmin || currentView === "exchanges");
+      document.querySelector("#runSecurityTestV3").classList.toggle("hidden", !isAdmin || currentView === "exchanges");
       exchangePanel.classList.toggle("hidden", currentView === "exchanges");
 
       if (currentView === "duplicates") {
@@ -1022,7 +1023,7 @@
       btn?.focus();
       const attrSafe = btn?.getAttribute("data-safe")?.includes("onfocus=") ?? false;
 
-      const scriptPayload = '<svg><script>window.__xssSvgFlag=1</script></svg>';
+      const scriptPayload = '<svg><script>window.__xssSvgFlag=1</scr' + 'ipt></svg>';
       window.__xssSvgFlag = 0;
       const cleanScriptPayload = escapeHtml(scriptPayload);
       const scriptBlocked = cleanScriptPayload.includes("&lt;script&gt;") && window.__xssSvgFlag === 0;
@@ -1042,7 +1043,7 @@
 
       const safeUrl = "mailto:test@example.com";
       const blockedUrl = "javascript:alert(1)";
-      const blockedDataUrl = "data:text/html,<script>alert(1)</script>";
+      const blockedDataUrl = "data:text/html,<scr" + "ipt>alert(1)</scr" + "ipt>";
       const isBlockedScheme = value => /^(javascript:|data:text\/html)/i.test(String(value || "").trim());
       const schemeFilterPassed = !isBlockedScheme(safeUrl) && isBlockedScheme(blockedUrl) && isBlockedScheme(blockedDataUrl);
 
