@@ -400,7 +400,7 @@
   </header>
 
   <main class="wrap">
-    <details class="help-panel">
+    <details class="help-panel" open>
       <summary>¿Cómo intercambio?</summary>
       <ol>
         <li>Toca en Tengo repetidas las estampas que quieres.</li>
@@ -921,7 +921,7 @@
           return `<article class="team">
             <h2>${escapeHtml(request.requester_name || "Sin nombre")} <span>${escapeHtml(request.status)}</span></h2>
             <div class="codes">
-              <span class="code">${escapeHtml(request.user_email)}</span>
+              <span class="code">${escapeHtml(formatEmailForViewer(request.user_email))}</span>
               <span class="code">Quiere: ${wants || "sin seleccion"}</span>
               <span class="code">Da: ${gives || "sin seleccion"}</span>
               ${request.note ? `<span class="code">${escapeHtml(request.note)}</span>` : ""}
@@ -1294,6 +1294,12 @@
 
     function isValidEmail(value) {
       return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value);
+    }
+
+    function formatEmailForViewer(value) {
+      if (isAdmin) return value || "sin correo";
+      const localPart = String(value || "").split("@")[0].trim();
+      return localPart ? `${localPart}@` : "correo privado";
     }
 
     function createId() {
