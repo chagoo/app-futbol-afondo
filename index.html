@@ -446,7 +446,8 @@
       <button class="jump" id="goToExchange" type="button">Ir a enviar</button>
       <button class="primary" id="copy">Copiar lista</button>
       <button class="danger" id="reset">Restaurar</button>
-      <button id="runSecurityTest" type="button">Prueba E2E seguridad</button>
+      <button id="runSecurityTest" type="button">Prueba E2E seguridad v1</button>
+      <button id="runSecurityTestV2" type="button">Prueba E2E seguridad v2</button>
     </section>
 
     <section class="stats" aria-label="Resumen">
@@ -810,6 +811,7 @@
       status.style.display = currentView === "missing" ? "" : "none";
       document.querySelector("#addTeam").classList.toggle("hidden", !isAdmin || currentView === "exchanges");
       document.querySelector("#runSecurityTest").classList.toggle("hidden", !isAdmin || currentView === "exchanges");
+      document.querySelector("#runSecurityTestV2").classList.toggle("hidden", !isAdmin || currentView === "exchanges");
       exchangePanel.classList.toggle("hidden", currentView === "exchanges");
 
       if (currentView === "duplicates") {
@@ -997,6 +999,39 @@
         : "Prueba E2E de seguridad: FALLA. Revisa sanitizacion de HTML/atributos.", passed);
     }
 
+    function runSecurityE2ETestRevision2() {
+      if (!isAdmin) return;
+
+      const csp = document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.content || "";
+      const cspChecks = [
+        "default-src 'self'",
+        "base-uri 'none'",
+        "object-src 'none'",
+        "frame-ancestors 'none'",
+        "form-action 'self'"
+      ];
+      const cspPassed = cspChecks.every(rule => csp.includes(rule));
+
+      const payload = '" autofocus onfocus=window.__xssAttrFlag=1 x="';
+      window.__xssAttrFlag = 0;
+      const html = `<button data-safe="${escapeAttr(payload)}">ok</button>`;
+      const holder = document.createElement("div");
+      holder.innerHTML = html;
+      const btn = holder.querySelector("button");
+      btn?.focus();
+      const attrSafe = btn?.getAttribute("data-safe")?.includes("onfocus=") ?? false;
+
+      const scriptPayload = '<svg><script>window.__xssSvgFlag=1</script></svg>';
+      window.__xssSvgFlag = 0;
+      const cleanScriptPayload = escapeHtml(scriptPayload);
+      const scriptBlocked = cleanScriptPayload.includes("&lt;script&gt;") && window.__xssSvgFlag === 0;
+
+      const passed = cspPassed && !attrSafe && scriptBlocked && window.__xssAttrFlag === 0;
+      showNote(passed
+        ? "Prueba E2E de seguridad v2: OK. CSP y sanitizacion reforzada validadas."
+        : "Prueba E2E de seguridad v2: FALLA. Revisa CSP o escapes de entrada.", passed);
+    }
+
     function bindEvents() {
       document.querySelectorAll(".view-tab").forEach(button => {
         button.addEventListener("click", async () => {
@@ -1015,6 +1050,7 @@
       document.querySelector("#addTeam").addEventListener("click", addTeam);
       document.querySelector("#reset").classList.add("hidden");
       document.querySelector("#runSecurityTest").addEventListener("click", runSecurityE2ETest);
+      document.querySelector("#runSecurityTestV2").addEventListener("click", runSecurityE2ETestRevision2);
       document.querySelector("#authForm").addEventListener("submit", async event => {
         event.preventDefault();
         await loginUser();
