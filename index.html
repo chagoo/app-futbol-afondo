@@ -109,6 +109,11 @@
       color: #cc3245;
     }
 
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
     .stats {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -246,12 +251,19 @@
     }
 
     .auth-panel,
+    .help-panel,
     .exchange-panel {
       margin: 14px 0 0;
       padding: 12px 14px;
       border: 1px solid var(--line);
       border-radius: 8px;
       background: var(--paper);
+    }
+
+    .auth-panel summary,
+    .help-panel summary {
+      cursor: pointer;
+      font-weight: 700;
     }
 
     .auth-panel form,
@@ -272,6 +284,18 @@
       font-weight: 700;
     }
 
+    .exchange-form {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .exchange-form input {
+      width: 100%;
+      min-width: 0;
+    }
+
     .exchange-panel textarea {
       width: 100%;
       min-height: 76px;
@@ -284,10 +308,56 @@
       white-space: pre-line;
     }
 
+    .selection-counts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 10px 0 0;
+    }
+
+    .selection-counts span,
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      border-radius: 999px;
+      padding: 4px 9px;
+      background: #eef3ff;
+      color: #234a91;
+      font-weight: 700;
+      font-size: 13px;
+    }
+
     .selected {
       border-color: var(--green);
       background: #eaf8f1;
       color: #155d3c;
+    }
+
+    .code.selectable {
+      cursor: pointer;
+    }
+
+    .code.selectable:hover {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 2px rgba(39, 90, 166, 0.1);
+    }
+
+    .code.requested {
+      border-color: #8ab4f8;
+      background: #eef5ff;
+      color: #214a7b;
+    }
+
+    .code.unavailable {
+      opacity: 0.72;
+      cursor: not-allowed;
+    }
+
+    .help-panel ol {
+      margin: 10px 0 0;
+      padding-left: 22px;
+      line-height: 1.5;
     }
 
     .hidden {
@@ -302,6 +372,10 @@
       .stats {
         grid-template-columns: 1fr;
       }
+
+      .exchange-form {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -309,12 +383,24 @@
   <header>
     <div class="wrap">
       <h1>Estampas para intercambio</h1>
-      <p class="subtitle">Album FIFA World Cup 2026. Mira lo que me falta, revisa mis repetidas y manda una propuesta de intercambio iniciando sesion.</p>
+      <p class="subtitle">Album FIFA World Cup 2026. Mira lo que me falta, revisa mis repetidas y manda una propuesta sin crear cuenta.</p>
     </div>
   </header>
 
   <main class="wrap">
-    <section class="auth-panel" aria-label="Sesion">
+    <details class="help-panel">
+      <summary>¿Cómo intercambio?</summary>
+      <ol>
+        <li>Toca en Tengo repetidas las estampas que quieres.</li>
+        <li>Toca en Me faltan las estampas que puedes darme.</li>
+        <li>Escribe tu nombre y correo.</li>
+        <li>Envía la propuesta.</li>
+        <li>Yo reviso y confirmo el intercambio.</li>
+      </ol>
+    </details>
+
+    <details class="auth-panel" aria-label="Administracion">
+      <summary>Administración</summary>
       <form id="authForm">
         <input id="email" type="email" placeholder="Correo" autocomplete="email">
         <input id="password" type="password" placeholder="Password" autocomplete="current-password">
@@ -327,7 +413,7 @@
         <button id="logout" type="button" class="hidden">Salir</button>
         <span id="sessionName" class="session-name"></span>
       </div>
-    </section>
+    </details>
 
     <section class="view-tabs" aria-label="Secciones">
       <button class="view-tab active" type="button" data-view="missing">Me faltan</button>
@@ -360,10 +446,19 @@
 
     <section id="exchangePanel" class="exchange-panel">
       <strong>Propuesta de intercambio (<span id="selectedTotal">0</span>)</strong>
-      <p id="exchangeSummary">Inicia sesion para marcar que repetidas quieres y que faltantes puedes darme.</p>
-      <textarea id="exchangeNote" placeholder="Nota opcional para coordinar el intercambio"></textarea>
+      <div class="selection-counts">
+        <span id="wantCount">Quieres 0</span>
+        <span id="giveCount">Puedes dar 0</span>
+      </div>
+      <p id="exchangeSummary">Toca las estampas que quieres y las que puedes darme para armar la propuesta.</p>
+      <div class="exchange-form">
+        <input id="requesterName" type="text" placeholder="Tu nombre" autocomplete="name">
+        <input id="requesterEmail" type="email" placeholder="Tu correo" autocomplete="email">
+      </div>
+      <textarea id="exchangeNote" placeholder="Nota opcional / WhatsApp para coordinar el intercambio"></textarea>
       <div class="exchange-actions">
         <button id="submitExchange" class="primary" type="button">Enviar propuesta</button>
+        <button id="copySelection" type="button">Copiar selección</button>
         <button id="clearExchange" type="button">Limpiar seleccion</button>
       </div>
     </section>
@@ -434,6 +529,7 @@
     let isAdmin = false;
     let selectedWants = new Set();
     let selectedGives = new Set();
+    let requestCounts = new Map();
 
     const teamsList = document.querySelector("#teamsList");
     const search = document.querySelector("#search");
@@ -442,8 +538,12 @@
     const exchangePanel = document.querySelector("#exchangePanel");
     const exchangeSummary = document.querySelector("#exchangeSummary");
     const exchangeNote = document.querySelector("#exchangeNote");
+    const requesterName = document.querySelector("#requesterName");
+    const requesterEmail = document.querySelector("#requesterEmail");
     const submitExchangeButton = document.querySelector("#submitExchange");
     const selectedTotalEl = document.querySelector("#selectedTotal");
+    const wantCountEl = document.querySelector("#wantCount");
+    const giveCountEl = document.querySelector("#giveCount");
 
     function allCodes(item) {
       return [
@@ -478,19 +578,34 @@
 
     async function loadStickers() {
       try {
+        await loadRequestCounts();
         const rows = await request("/api/database/records/album_stickers?order=sort_order.asc,team.asc,code.asc", {
           headers: authHeaders()
         });
         setListsFromRows(Array.isArray(rows) ? rows : []);
         notes.textContent = session?.accessToken
           ? "Datos cargados desde InsForge. Sesion activa."
-          : "Datos publicos cargados desde InsForge. Inicia sesion para proponer intercambios o administrar.";
+          : "Datos publicos cargados desde InsForge. Puedes enviar propuesta sin iniciar sesion; el login es solo para administrar.";
         notes.classList.add("ok");
       } catch (error) {
         missing = structuredClone(defaultMissing);
         duplicates = structuredClone(defaultDuplicates);
         notes.textContent = "Vista publica con la base inicial. Para datos en vivo, propuestas y administracion, inicia sesion.";
         notes.classList.remove("ok");
+      }
+    }
+
+    async function loadRequestCounts() {
+      requestCounts = new Map();
+      try {
+        const rows = await request("/api/database/records/sticker_request_counts", {
+          headers: authHeaders()
+        });
+        (Array.isArray(rows) ? rows : []).forEach(row => {
+          requestCounts.set(`${row.team}||${row.code}`, Number(row.requested_quantity) || 0);
+        });
+      } catch {
+        requestCounts = new Map();
       }
     }
 
@@ -502,7 +617,12 @@
         if (!map.has(row.team)) map.set(row.team, { team: row.team, codes: [], uncertain: [] });
         const group = map.get(row.team);
         if (row.list_type === "duplicate") {
-          group.codes.push({ id: row.id, code: row.code, quantity: row.quantity || 1 });
+          group.codes.push({
+            id: row.id,
+            code: row.code,
+            quantity: row.quantity || 1,
+            requestedQuantity: requestCounts.get(`${row.team}||${row.code}`) || 0
+          });
         } else if (row.uncertain) {
           group.uncertain.push({ id: row.id, code: row.code, uncertain: true });
         } else {
@@ -528,7 +648,9 @@
     }
 
     async function loadExchanges() {
-      if (!session?.accessToken) return;
+      exchangeRequests = [];
+      exchangeItems = [];
+      if (!session?.accessToken || !isAdmin) return;
       exchangeRequests = await request("/api/database/records/exchange_requests?order=created_at.desc", { headers: authHeaders() }) || [];
       exchangeItems = await request("/api/database/records/exchange_items?order=created_at.asc", { headers: authHeaders() }) || [];
     }
@@ -683,9 +805,9 @@
           <h2>${escapeHtml(item.team)}${isAdmin ? `<button type="button" data-remove-team="${escapeAttr(item.team)}">Quitar</button>` : ""}</h2>
           <div class="codes">
             ${item.filteredCodes.map(entry => `
-              <span class="code ${entry.uncertain ? "uncertain" : ""} ${selectedGives.has(entryId(entry)) ? "selected" : ""}">
+              <span class="code selectable ${entry.uncertain ? "uncertain" : ""} ${selectedGives.has(entryId(entry)) ? "selected" : ""}" data-select-give="${escapeAttr(entryId(entry))}">
                 ${escapeHtml(entry.code)}${entry.uncertain ? " ?" : ""}
-                ${session?.accessToken && !isAdmin ? `<button type="button" title="La puedo dar" data-select-give="${escapeAttr(entryId(entry))}">+</button>` : ""}
+                ${selectedGives.has(entryId(entry)) ? `<span class="badge">Seleccionada</span>` : ""}
                 ${isAdmin ? `<button type="button" title="Cambiar estado" data-toggle-id="${escapeAttr(entryId(entry))}" data-uncertain="${entry.uncertain}">~</button>
                 <button type="button" title="Quitar" data-delete-id="${escapeAttr(entryId(entry))}">x</button>` : ""}
               </span>
@@ -716,15 +838,19 @@
         <article class="team">
           <h2>${escapeHtml(item.team)}${isAdmin ? `<button type="button" data-remove-duplicate-team="${escapeAttr(item.team)}">Quitar</button>` : ""}</h2>
           <div class="codes">
-            ${item.filteredCodes.map(entry => `
-              <span class="code ${selectedWants.has(entryId(entry)) ? "selected" : ""}">
-                ${escapeHtml(entry.code)} x${entry.quantity}
-                ${session?.accessToken && !isAdmin ? `<button type="button" title="La quiero" data-select-want="${escapeAttr(entryId(entry))}">+</button>` : ""}
+            ${item.filteredCodes.map(entry => {
+              const requested = Math.min(Number(entry.requestedQuantity) || 0, Number(entry.quantity) || 1);
+              const available = Math.max(0, (Number(entry.quantity) || 1) - requested);
+              const isSelected = selectedWants.has(entryId(entry));
+              return `
+              <span class="code ${available > 0 ? "selectable" : "unavailable"} ${requested > 0 ? "requested" : ""} ${isSelected ? "selected" : ""}" ${available > 0 ? `data-select-want="${escapeAttr(entryId(entry))}"` : ""}>
+                ${escapeHtml(entry.code)} x${available}${requested > 0 ? ` <span class="badge">Solicitada x${requested}</span>` : ""}
+                ${isSelected ? `<span class="badge">Seleccionada</span>` : ""}
                 ${isAdmin ? `<button type="button" title="Sumar una" data-duplicate-plus="${escapeAttr(entryId(entry))}" data-quantity="${entry.quantity}">+</button>
                 <button type="button" title="Restar una" data-duplicate-minus="${escapeAttr(entryId(entry))}" data-quantity="${entry.quantity}">-</button>
                 <button type="button" title="Quitar" data-delete-id="${escapeAttr(entryId(entry))}">x</button>` : ""}
               </span>
-            `).join("")}
+            `}).join("")}
           </div>
           ${isAdmin ? `<form class="editor" data-add-duplicate="${escapeAttr(item.team)}">
             <input name="code" placeholder="Repetida, ej. QAT 10" autocomplete="off">
@@ -734,7 +860,7 @@
         </article>
       `).join("");
 
-      const total = duplicates.flatMap(item => item.codes).reduce((sum, entry) => sum + entry.quantity, 0);
+      const total = duplicates.flatMap(item => item.codes).reduce((sum, entry) => sum + Math.max(0, (entry.quantity || 1) - (entry.requestedQuantity || 0)), 0);
       document.querySelector("#total").textContent = total;
       document.querySelector("#teams").textContent = duplicates.length;
       document.querySelector("#uncertain").textContent = duplicates.flatMap(item => item.codes).length;
@@ -749,21 +875,22 @@
       const gives = listEntries(missing).filter(entry => selectedGives.has(entry.id));
       const total = wants.length + gives.length;
       if (selectedTotalEl) selectedTotalEl.textContent = String(total);
-      const summaryLines = [
-        `Seleccionadas: ${total}`,
-        ...wants.map(entry => `Quiero ${entry.team} ${entry.code}`),
-        ...gives.map(entry => `Puedo dar ${entry.team} ${entry.code}`)
-      ];
-      exchangeSummary.textContent = session?.accessToken && !isAdmin
-        ? summaryLines.join("\n")
-        : "Inicia sesion para marcar que repetidas quieres y que faltantes puedes darme.";
-      submitExchangeButton.disabled = !session?.accessToken || isAdmin || total === 0;
+      if (wantCountEl) wantCountEl.textContent = `Quieres ${wants.length}`;
+      if (giveCountEl) giveCountEl.textContent = `Puedes dar ${gives.length}`;
+      const summaryLines = [];
+      if (wants.length) summaryLines.push(`Quieres: ${wants.map(entry => `${entry.team} ${entry.code}`).join(", ")}`);
+      if (gives.length) summaryLines.push(`Puedes dar: ${gives.map(entry => `${entry.team} ${entry.code}`).join(", ")}`);
+      if (!summaryLines.length) summaryLines.push("Toca las estampas que quieres y las que puedes darme para armar la propuesta.");
+      if (wants.length && !gives.length) summaryLines.push("Falta seleccionar al menos una estampa que puedas darme.");
+      if (!wants.length && gives.length) summaryLines.push("Falta seleccionar al menos una de mis repetidas que quieras.");
+      exchangeSummary.textContent = summaryLines.join("\n");
+      submitExchangeButton.disabled = isAdmin || wants.length === 0 || gives.length === 0;
     }
 
     function renderExchanges() {
       exchangePanel.classList.add("hidden");
-      if (!session?.accessToken) {
-        teamsList.innerHTML = `<article class="team"><div class="codes">Inicia sesion para ver tus propuestas.</div></article>`;
+      if (!isAdmin) {
+        teamsList.innerHTML = `<article class="team"><h2>Propuestas enviadas</h2><div class="codes">Tus propuestas se guardan para que yo las revise. Por privacidad, el detalle de propuestas solo lo ve el administrador.</div></article>`;
       } else if (!exchangeRequests.length) {
         teamsList.innerHTML = `<article class="team"><div class="codes">Todavia no hay propuestas.</div></article>`;
       } else {
@@ -772,12 +899,13 @@
           const wants = items.filter(item => item.direction === "wants_from_owner").map(item => `${escapeHtml(item.team)} ${escapeHtml(item.code)}`).join(", ");
           const gives = items.filter(item => item.direction === "gives_to_owner").map(item => `${escapeHtml(item.team)} ${escapeHtml(item.code)}`).join(", ");
           return `<article class="team">
-            <h2>${escapeHtml(request.user_email)} <span>${escapeHtml(request.status)}</span></h2>
+            <h2>${escapeHtml(request.requester_name || "Sin nombre")} <span>${escapeHtml(request.status)}</span></h2>
             <div class="codes">
+              <span class="code">${escapeHtml(request.user_email)}</span>
               <span class="code">Quiere: ${wants || "sin seleccion"}</span>
               <span class="code">Da: ${gives || "sin seleccion"}</span>
               ${request.note ? `<span class="code">${escapeHtml(request.note)}</span>` : ""}
-              ${isAdmin ? `<button type="button" data-request="${request.id}" data-status="accepted">Aceptar</button><button type="button" data-request="${request.id}" data-status="closed">Cerrar</button>` : ""}
+              ${isAdmin ? `<button type="button" data-request="${request.id}" data-status="accepted">Aceptar</button><button type="button" data-request="${request.id}" data-status="closed">Cerrar</button><button type="button" data-request="${request.id}" data-status="rejected">Rechazar</button>` : ""}
             </div>
           </article>`;
         }).join("");
@@ -793,7 +921,11 @@
     function copyList() {
       if (currentView === "duplicates") {
         const lines = duplicates.map(item => {
-          const repeated = item.codes.map(entry => `${entry.code} x${entry.quantity}`).join(", ");
+          const repeated = item.codes.map(entry => {
+            const available = Math.max(0, (entry.quantity || 1) - (entry.requestedQuantity || 0));
+            const requested = entry.requestedQuantity ? `, solicitada x${entry.requestedQuantity}` : "";
+            return `${entry.code} x${available}${requested}`;
+          }).join(", ");
           return `${item.team}: ${repeated}`;
         });
         navigator.clipboard.writeText(`Tengo estas estampas repetidas para intercambio:\n${lines.join("\n")}`);
@@ -803,13 +935,25 @@
       }
 
       const lines = missing.map(item => {
-        const confirmed = item.codes.join(", ");
-        const uncertain = (item.uncertain || []).map(code => `${code}?`).join(", ");
+        const confirmed = item.codes.map(entry => entry.code || entry).join(", ");
+        const uncertain = (item.uncertain || []).map(entry => `${entry.code || entry}?`).join(", ");
         return `${item.team}: ${[confirmed, uncertain].filter(Boolean).join(", ")}`;
       });
       navigator.clipboard.writeText(`Busco estas estampas para intercambio:\n${lines.join("\n")}`);
       document.querySelector("#copy").textContent = "Lista copiada";
       setTimeout(() => document.querySelector("#copy").textContent = "Copiar lista", 1500);
+    }
+
+    function copySelection() {
+      const { wants, gives } = selectedExchangeEntries();
+      const lines = [
+        "Propuesta de intercambio:",
+        wants.length ? `Quiero: ${wants.map(entry => `${entry.team} ${entry.code}`).join(", ")}` : "Quiero: sin seleccion",
+        gives.length ? `Puedo dar: ${gives.map(entry => `${entry.team} ${entry.code}`).join(", ")}` : "Puedo dar: sin seleccion"
+      ];
+      navigator.clipboard.writeText(lines.join("\n"));
+      document.querySelector("#copySelection").textContent = "Selección copiada";
+      setTimeout(() => document.querySelector("#copySelection").textContent = "Copiar selección", 1500);
     }
 
 
@@ -842,7 +986,10 @@
       });
       search.addEventListener("input", render);
       status.addEventListener("change", render);
+      requesterName.addEventListener("input", renderExchangePanel);
+      requesterEmail.addEventListener("input", renderExchangePanel);
       document.querySelector("#copy").addEventListener("click", copyList);
+      document.querySelector("#copySelection").addEventListener("click", copySelection);
       document.querySelector("#addTeam").addEventListener("click", addTeam);
       document.querySelector("#reset").classList.add("hidden");
       document.querySelector("#runSecurityTest").addEventListener("click", runSecurityE2ETest);
@@ -874,29 +1021,37 @@
 
     async function handleTeamClick(event) {
       const button = event.target.closest("button");
-      if (!button) return;
-      if (button.dataset.selectWant) {
+      if (button?.dataset.selectWant) {
         toggleSet(selectedWants, button.dataset.selectWant);
         render();
-      } else if (button.dataset.selectGive) {
+      } else if (button?.dataset.selectGive) {
         toggleSet(selectedGives, button.dataset.selectGive);
         render();
-      } else if (button.dataset.duplicatePlus) {
+      } else if (button?.dataset.duplicatePlus) {
         await changeDuplicate(button.dataset.duplicatePlus, button.dataset.quantity, 1);
-      } else if (button.dataset.duplicateMinus) {
+      } else if (button?.dataset.duplicateMinus) {
         await changeDuplicate(button.dataset.duplicateMinus, button.dataset.quantity, -1);
-      } else if (button.dataset.deleteId) {
+      } else if (button?.dataset.deleteId) {
         await removeCode(button.dataset.deleteId);
-      } else if (button.dataset.removeDuplicateTeam) {
+      } else if (button?.dataset.removeDuplicateTeam) {
         await removeDuplicateTeam(button.dataset.removeDuplicateTeam);
-      } else if (button.dataset.toggleId) {
+      } else if (button?.dataset.toggleId) {
         await toggleCode(button.dataset.toggleId, button.dataset.uncertain === "true");
-      } else if (button.dataset.request) {
+      } else if (button?.dataset.request) {
         await updateExchangeStatus(button.dataset.request, button.dataset.status);
-      } else if (button.dataset.toggleTeam) {
+      } else if (button?.dataset.toggleTeam) {
         await toggleCode(button.dataset.toggleTeam, button.dataset.uncertain === "true");
-      } else if (button.dataset.removeTeam) {
+      } else if (button?.dataset.removeTeam) {
         await removeTeam(button.dataset.removeTeam);
+      } else if (!isAdmin) {
+        const selectable = event.target.closest("[data-select-want],[data-select-give]");
+        if (selectable?.dataset.selectWant) {
+          toggleSet(selectedWants, selectable.dataset.selectWant);
+          render();
+        } else if (selectable?.dataset.selectGive) {
+          toggleSet(selectedGives, selectable.dataset.selectGive);
+          render();
+        }
       }
     }
 
@@ -988,18 +1143,42 @@
     }
 
     async function submitExchange() {
-      const selected = [...selectedWants, ...selectedGives];
-      const user = getUser();
-      if (!session?.accessToken || !selected.length || !user?.email) return;
-      const created = await request("/api/database/records/exchange_requests", {
+      const { wants, gives } = selectedExchangeEntries();
+      const name = requesterName.value.trim();
+      const email = requesterEmail.value.trim().toLowerCase();
+      if (!wants.length || !gives.length) {
+        notes.textContent = "Selecciona al menos una repetida que quieres y una faltante que puedes darme.";
+        notes.classList.remove("ok");
+        return;
+      }
+      if (!name) {
+        notes.textContent = "Escribe tu nombre para enviar la propuesta.";
+        notes.classList.remove("ok");
+        requesterName.focus();
+        return;
+      }
+      if (!isValidEmail(email)) {
+        notes.textContent = "Escribe un correo válido para poder coordinar el intercambio.";
+        notes.classList.remove("ok");
+        requesterEmail.focus();
+        return;
+      }
+      const requestId = createId();
+      await request("/api/database/records/exchange_requests", {
         method: "POST",
-        headers: { ...authHeaders(), Prefer: "return=representation" },
-        body: JSON.stringify([{ user_id: user.id || user.sub, user_email: user.email, note: exchangeNote.value.trim(), status: "submitted" }])
+        headers: authHeaders(),
+        body: JSON.stringify([{
+          id: requestId,
+          user_id: `public:${requestId}`,
+          requester_name: name,
+          user_email: email,
+          note: exchangeNote.value.trim(),
+          status: "submitted"
+        }])
       });
-      const requestId = created?.[0]?.id;
       const rows = [
-        ...listEntries(duplicates).filter(entry => selectedWants.has(entry.id)).map(entry => ({ request_id: requestId, direction: "wants_from_owner", team: entry.team, code: entry.code, quantity: 1 })),
-        ...listEntries(missing).filter(entry => selectedGives.has(entry.id)).map(entry => ({ request_id: requestId, direction: "gives_to_owner", team: entry.team, code: entry.code, quantity: 1 }))
+        ...wants.map(entry => ({ request_id: requestId, direction: "wants_from_owner", team: entry.team, code: entry.code, quantity: 1 })),
+        ...gives.map(entry => ({ request_id: requestId, direction: "gives_to_owner", team: entry.team, code: entry.code, quantity: 1 }))
       ];
       await request("/api/database/records/exchange_items", {
         method: "POST",
@@ -1009,8 +1188,11 @@
       selectedWants.clear();
       selectedGives.clear();
       exchangeNote.value = "";
-      currentView = "exchanges";
-      await loadExchanges();
+      requesterName.value = "";
+      requesterEmail.value = "";
+      notes.textContent = "Propuesta enviada. Gracias, la revisaré para confirmar el intercambio.";
+      notes.classList.add("ok");
+      await refreshFromBackend();
       render();
     }
 
@@ -1051,6 +1233,7 @@
     function renderAuth() {
       const signedIn = Boolean(session?.accessToken);
       const user = getUser();
+      document.querySelector(".auth-panel").open = signedIn;
       document.querySelector("#authForm").classList.toggle("hidden", signedIn);
       document.querySelector("#register").classList.toggle("hidden", signedIn);
       document.querySelector("#google").classList.toggle("hidden", signedIn);
@@ -1067,8 +1250,31 @@
       return list.flatMap(item => allCodes(item).map(entry => ({ ...entry, team: item.team })));
     }
 
+    function selectedExchangeEntries() {
+      return {
+        wants: listEntries(duplicates).filter(entry => selectedWants.has(entry.id)),
+        gives: listEntries(missing).filter(entry => selectedGives.has(entry.id))
+      };
+    }
+
     function toggleSet(set, value) {
       set.has(value) ? set.delete(value) : set.add(value);
+    }
+
+    function isValidEmail(value) {
+      return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value);
+    }
+
+    function createId() {
+      if (crypto.randomUUID) return crypto.randomUUID();
+      const bytes = new Uint8Array(16);
+      crypto.getRandomValues(bytes);
+      bytes[6] = (bytes[6] & 0x0f) | 0x40;
+      bytes[8] = (bytes[8] & 0x3f) | 0x80;
+      return [...bytes].map((byte, index) => {
+        const value = byte.toString(16).padStart(2, "0");
+        return [4, 6, 8, 10].includes(index) ? `-${value}` : value;
+      }).join("");
     }
 
     function loadJson(key, fallback) {
