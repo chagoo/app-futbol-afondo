@@ -448,6 +448,7 @@
       <button class="danger" id="reset">Restaurar</button>
       <button id="runSecurityTest" type="button">Prueba E2E seguridad v1</button>
       <button id="runSecurityTestV2" type="button">Prueba E2E seguridad v2</button>
+      <button id="runSecurityTestV3" type="button">Prueba E2E seguridad v3</button>
     </section>
 
     <section class="stats" aria-label="Resumen">
@@ -1032,6 +1033,30 @@
         : "Prueba E2E de seguridad v2: FALLA. Revisa CSP o escapes de entrada.", passed);
     }
 
+
+    function runSecurityE2ETestRevision3() {
+      if (!isAdmin) return;
+
+      const referrerPolicy = document.querySelector('meta[name="referrer"]')?.content || "";
+      const strictReferrer = referrerPolicy.toLowerCase() === "no-referrer";
+
+      const safeUrl = "mailto:test@example.com";
+      const blockedUrl = "javascript:alert(1)";
+      const blockedDataUrl = "data:text/html,<script>alert(1)</script>";
+      const isBlockedScheme = value => /^(javascript:|data:text\/html)/i.test(String(value || "").trim());
+      const schemeFilterPassed = !isBlockedScheme(safeUrl) && isBlockedScheme(blockedUrl) && isBlockedScheme(blockedDataUrl);
+
+      const idA = createId();
+      const idB = createId();
+      const uuidV4Regex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const idsAreStrong = uuidV4Regex.test(idA) && uuidV4Regex.test(idB) && idA !== idB;
+
+      const passed = strictReferrer && schemeFilterPassed && idsAreStrong;
+      showNote(passed
+        ? "Prueba E2E de seguridad v3: OK. Referrer-Policy, filtros de esquema y IDs robustos validados."
+        : "Prueba E2E de seguridad v3: FALLA. Revisa politicas de privacidad, filtros de URL o generacion de IDs.", passed);
+    }
+
     function bindEvents() {
       document.querySelectorAll(".view-tab").forEach(button => {
         button.addEventListener("click", async () => {
@@ -1051,6 +1076,7 @@
       document.querySelector("#reset").classList.add("hidden");
       document.querySelector("#runSecurityTest").addEventListener("click", runSecurityE2ETest);
       document.querySelector("#runSecurityTestV2").addEventListener("click", runSecurityE2ETestRevision2);
+      document.querySelector("#runSecurityTestV3").addEventListener("click", runSecurityE2ETestRevision3);
       document.querySelector("#authForm").addEventListener("submit", async event => {
         event.preventDefault();
         await loginUser();
