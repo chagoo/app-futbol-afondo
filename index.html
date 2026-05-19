@@ -421,6 +421,7 @@
     ];
 
     const API_BASE_URL = "https://jbnjx92x.us-east.insforge.app";
+    const PUBLIC_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3OC0xMjM0LTU2NzgtOTBhYi1jZGVmMTIzNDU2NzgiLCJlbWFpbCI6ImFub25AaW5zZm9yZ2UuY29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNTQwMjB9.FmS2aPBOaBN2M3QCHtfRtpcmh992u8OY1qV3TqmDN2U";
     const SESSION_KEY = "album-insforge-session-v1";
     const OAUTH_KEY = "album-insforge-oauth-v1";
     let currentView = "missing";
@@ -477,12 +478,13 @@
 
     async function loadStickers() {
       try {
-        if (!session?.accessToken) throw new Error("public-fallback");
         const rows = await request("/api/database/records/album_stickers?order=sort_order.asc,team.asc,code.asc", {
           headers: authHeaders()
         });
         setListsFromRows(Array.isArray(rows) ? rows : []);
-        notes.textContent = "Datos cargados desde InsForge. Los visitantes pueden ver la lista; al iniciar sesion pueden proponer intercambios.";
+        notes.textContent = session?.accessToken
+          ? "Datos cargados desde InsForge. Sesion activa."
+          : "Datos publicos cargados desde InsForge. Inicia sesion para proponer intercambios o administrar.";
         notes.classList.add("ok");
       } catch (error) {
         missing = structuredClone(defaultMissing);
@@ -1035,7 +1037,7 @@
     }
 
     function authHeaders() {
-      return session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {};
+      return { Authorization: `Bearer ${session?.accessToken || PUBLIC_ANON_KEY}` };
     }
 
     function saveSession(data) {
