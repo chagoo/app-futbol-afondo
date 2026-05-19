@@ -452,14 +452,19 @@
     }
 
     async function boot() {
+      let oauthError = "";
       try {
         await handleOAuthCallback();
       } catch (error) {
-        notes.textContent = error.message || "No se pudo validar el inicio con OAuth.";
+        oauthError = error.message || "No se pudo validar el inicio con OAuth.";
       }
       await refreshFromBackend();
       bindEvents();
       render();
+      if (oauthError) {
+        notes.textContent = oauthError;
+        notes.classList.remove("ok");
+      }
       runSecurityE2ETest();
     }
 
@@ -948,17 +953,36 @@
       const returnedState = params.get("state");
       if (!code) return;
       const state = loadJson(OAUTH_KEY, null);
-      if (!state?.codeVerifier || !state?.state || returnedState !== state.state) {
+      if (!state?.codeVerifier) {
+        localStorage.removeItem(OAUTH_KEY);
+        throw new Error("No encontre la sesion temporal de Google. Vuelve a presionar Entrar con Google desde esta pagina publicada.");
+      }
+      if (returnedState && state?.state && returnedState !== state.state) {
         localStorage.removeItem(OAUTH_KEY);
         throw new Error("Estado OAuth invalido. Intenta iniciar sesion otra vez.");
       }
-      const data = await request("/api/auth/oauth/exchange?client_type=desktop", {
-        method: "POST",
-        body: JSON.stringify({ code, code_verifier: state?.codeVerifier })
-      });
+      const data = await exchangeOAuthCode(code, state.codeVerifier);
       saveSession(data);
       localStorage.removeItem(OAUTH_KEY);
       window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    async function exchangeOAuthCode(code, codeVerifier) {
+      const body = JSON.stringify({ code, code_verifier: codeVerifier });
+      const endpoints = [
+        "/api/auth/oauth/exchange?client_type=web",
+        "/api/auth/oauth/exchange?client_type=desktop",
+        "/api/auth/oauth/exchange"
+      ];
+      let lastError = null;
+      for (const endpoint of endpoints) {
+        try {
+          return await request(endpoint, { method: "POST", body });
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      throw lastError || new Error("No se pudo completar OAuth.");
     }
 
     async function submitExchange() {
