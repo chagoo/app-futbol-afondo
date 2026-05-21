@@ -485,7 +485,7 @@ const defaultMissing = [
               <span class="code">Quiere: ${wants || "sin seleccion"}</span>
               <span class="code">Da: ${gives || "sin seleccion"}</span>
               ${request.note ? `<span class="code">${escapeHtml(request.note)}</span>` : ""}
-              ${isAdmin ? `<button type="button" data-request="${request.id}" data-status="accepted">Aceptar</button><button type="button" data-request="${request.id}" data-status="closed">Cerrar</button><button type="button" data-request="${request.id}" data-status="rejected">Descartar</button>` : ""}
+              ${isAdmin ? `<button type="button" data-download-request="${request.id}" data-download-type="proposal">Descargar TXT</button><button type="button" data-copy-request="${request.id}">Copiar WhatsApp</button><button type="button" data-download-request="${request.id}" data-download-type="complete">Lista completa</button><button type="button" data-request="${request.id}" data-status="accepted">Aceptar</button><button type="button" data-request="${request.id}" data-status="closed">Cerrar</button><button type="button" data-request="${request.id}" data-status="rejected">Descartar</button>` : ""}
             </div>
           </article>`;
         }).join("");
@@ -536,6 +536,82 @@ const defaultMissing = [
       setTimeout(() => document.querySelector("#copySelection").textContent = "Copiar selección", 1500);
     }
 
+    function exchangeDetails(requestId) {
+      const requestRecord = exchangeRequests.find(request => request.id === requestId);
+      const items = exchangeItems.filter(item => item.request_id === requestId);
+      const wants = items.filter(item => item.direction === "wants_from_owner");
+      const gives = items.filter(item => item.direction === "gives_to_owner");
+      return { request: requestRecord, wants, gives };
+    }
+
+    function formatProposalItem(item, includeTeam) {
+      const quantity = item.quantity && item.quantity > 1 ? ` x${item.quantity}` : "";
+      return `${includeTeam ? `${item.team} ` : ""}${item.code}${quantity}`;
+    }
+
+    function formatProposalList(items, includeTeam) {
+      return items.length ? items.map(item => formatProposalItem(item, includeTeam)).join(", ") : "sin seleccion";
+    }
+
+    function exchangeText(requestId, type) {
+      const { request, wants, gives } = exchangeDetails(requestId);
+      if (!request) return "";
+      const name = request.requester_name || "Sin nombre";
+      if (type === "complete") {
+        const lines = [
+          `Propuesta de intercambio - ${name}`,
+          `Estado: ${request.status || "sin estado"}`,
+          `Correo: ${request.user_email || "sin correo"}`,
+          request.note ? `Nota: ${request.note}` : "Nota: sin nota",
+          "",
+          `Quiere de mis repetidas (${wants.length}):`,
+          wants.length ? wants.map(item => `- ${formatProposalItem(item, true)}`).join("\n") : "- sin seleccion",
+          "",
+          `Me ofrece de mis faltantes (${gives.length}):`,
+          gives.length ? gives.map(item => `- ${formatProposalItem(item, true)}`).join("\n") : "- sin seleccion"
+        ];
+        return lines.join("\n");
+      }
+      return [
+        `Propuesta de intercambio - ${name}`,
+        `Quiere: ${formatProposalList(wants, false)}`,
+        `Da: ${formatProposalList(gives, false)}`,
+        request.note ? `Nota: ${request.note}` : ""
+      ].filter(Boolean).join("\n");
+    }
+
+    function proposalFileName(requestId, type) {
+      const { request } = exchangeDetails(requestId);
+      const name = (request?.requester_name || "propuesta").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "propuesta";
+      return `${type === "complete" ? "lista_completa" : "propuesta"}_${name}.txt`;
+    }
+
+    function downloadTextFile(fileName, content) {
+      const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function downloadExchangeText(requestId, type) {
+      const content = exchangeText(requestId, type);
+      if (!content) return;
+      downloadTextFile(proposalFileName(requestId, type), content);
+    }
+
+    async function copyExchangeWhatsapp(requestId, button) {
+      const content = exchangeText(requestId, "proposal");
+      if (!content) return;
+      await navigator.clipboard.writeText(content);
+      const previousText = button.textContent;
+      button.textContent = "WhatsApp copiado";
+      setTimeout(() => button.textContent = previousText, 1500);
+    }
 
     function runSecurityE2ETest() {
       if (!isAdmin) return;
@@ -692,6 +768,10 @@ const defaultMissing = [
         await removeDuplicateTeam(button.dataset.removeDuplicateTeam);
       } else if (button?.dataset.toggleId) {
         await toggleCode(button.dataset.toggleId, button.dataset.uncertain === "true");
+      } else if (button?.dataset.downloadRequest) {
+        downloadExchangeText(button.dataset.downloadRequest, button.dataset.downloadType || "proposal");
+      } else if (button?.dataset.copyRequest) {
+        await copyExchangeWhatsapp(button.dataset.copyRequest, button);
       } else if (button?.dataset.request) {
         await updateExchangeStatus(button.dataset.request, button.dataset.status);
       } else if (button?.dataset.toggleTeam) {
