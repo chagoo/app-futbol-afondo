@@ -65,6 +65,7 @@ const defaultMissing = [
     let selectedWants = new Set();
     let selectedGives = new Set();
     let requestCounts = new Map();
+    let offerCounts = new Map();
 
     const teamsList = document.querySelector("#teamsList");
     const search = document.querySelector("#search");
@@ -119,6 +120,7 @@ const defaultMissing = [
     async function loadStickers() {
       try {
         await loadRequestCounts();
+        await loadOfferCounts();
         const rows = await request("/api/database/records/album_stickers?order=sort_order.asc,team.asc,code.asc", {
           headers: authHeaders()
         });
@@ -157,6 +159,20 @@ const defaultMissing = [
       }
     }
 
+    async function loadOfferCounts() {
+      offerCounts = new Map();
+      try {
+        const rows = await request("/api/database/records/sticker_offer_counts", {
+          headers: authHeaders()
+        });
+        (Array.isArray(rows) ? rows : []).forEach(row => {
+          offerCounts.set(`${row.team}||${row.code}`, Number(row.offered_quantity) || 0);
+        });
+      } catch {
+        offerCounts = new Map();
+      }
+    }
+
     function setListsFromRows(rows) {
       const missingMap = new Map();
       const duplicateMap = new Map();
@@ -172,9 +188,19 @@ const defaultMissing = [
             requestedQuantity: requestCounts.get(`${row.team}||${row.code}`) || 0
           });
         } else if (row.uncertain) {
-          group.uncertain.push({ id: row.id, code: row.code, uncertain: true });
+          group.uncertain.push({
+            id: row.id,
+            code: row.code,
+            uncertain: true,
+            offeredQuantity: offerCounts.get(`${row.team}||${row.code}`) || 0
+          });
         } else {
-          group.codes.push({ id: row.id, code: row.code, uncertain: false });
+          group.codes.push({
+            id: row.id,
+            code: row.code,
+            uncertain: false,
+            offeredQuantity: offerCounts.get(`${row.team}||${row.code}`) || 0
+          });
         }
       });
       missing = [...missingMap.values()];
@@ -354,14 +380,18 @@ const defaultMissing = [
         <article class="team">
           <h2>${escapeHtml(item.team)}${isAdmin ? `<button type="button" data-remove-team="${escapeAttr(item.team)}">Quitar</button>` : ""}</h2>
           <div class="codes">
-            ${item.filteredCodes.map(entry => `
-              <span class="code selectable ${entry.uncertain ? "uncertain" : ""} ${selectedGives.has(entryId(entry)) ? "selected" : ""}" data-select-give="${escapeAttr(entryId(entry))}">
-                ${escapeHtml(entry.code)}${entry.uncertain ? " ?" : ""}
-                ${selectedGives.has(entryId(entry)) ? `<span class="badge">Seleccionada</span>` : ""}
+            ${item.filteredCodes.map(entry => {
+              const offered = Number(entry.offeredQuantity) || 0;
+              const isSelected = selectedGives.has(entryId(entry));
+              const canOffer = offered === 0;
+              return `
+              <span class="code ${canOffer ? "selectable" : "requested unavailable"} ${entry.uncertain ? "uncertain" : ""} ${isSelected ? "selected" : ""}" ${canOffer ? `data-select-give="${escapeAttr(entryId(entry))}"` : ""}>
+                ${escapeHtml(entry.code)}${entry.uncertain ? " ?" : ""}${offered > 0 ? ` <span class="badge">Ofrecida x${offered}</span>` : ""}
+                ${isSelected ? `<span class="badge">Seleccionada</span>` : ""}
                 ${isAdmin ? `<button type="button" title="Cambiar estado" data-toggle-id="${escapeAttr(entryId(entry))}" data-uncertain="${entry.uncertain}">~</button>
                 <button type="button" title="Quitar" data-delete-id="${escapeAttr(entryId(entry))}">x</button>` : ""}
               </span>
-            `).join("")}
+            `}).join("")}
           </div>
           ${isAdmin ? `<form class="editor" data-add-code="${escapeAttr(item.team)}">
             <input name="code" placeholder="Nueva falta, ej. MEX 11" autocomplete="off">
