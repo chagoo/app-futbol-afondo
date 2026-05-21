@@ -48,7 +48,7 @@
 
     .toolbar {
       display: grid;
-      grid-template-columns: 1fr auto auto auto auto auto;
+      grid-template-columns: 1fr auto auto auto auto auto auto;
       gap: 10px;
       align-items: center;
       padding: 16px 0;
@@ -100,6 +100,12 @@
     button.danger {
       border-color: #cc3245;
       color: #cc3245;
+    }
+
+    button.filter-active {
+      border-color: var(--blue);
+      background: #eaf1ff;
+      color: var(--blue);
     }
 
     button.jump {

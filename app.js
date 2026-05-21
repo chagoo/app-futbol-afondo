@@ -66,10 +66,12 @@ const defaultMissing = [
     let selectedGives = new Set();
     let requestCounts = new Map();
     let offerCounts = new Map();
+    let showAvailableOnly = false;
 
     const teamsList = document.querySelector("#teamsList");
     const search = document.querySelector("#search");
     const status = document.querySelector("#status");
+    const availableOnly = document.querySelector("#availableOnly");
     const notes = document.querySelector("#notes");
     const exchangePanel = document.querySelector("#exchangePanel");
     const exchangeSummary = document.querySelector("#exchangeSummary");
@@ -345,14 +347,23 @@ const defaultMissing = [
         .filter(item => item.filteredCodes.length || (!q && mode === "all"));
     }
 
+    function duplicateAvailable(entry) {
+      const requested = Math.min(Number(entry.requestedQuantity) || 0, Number(entry.quantity) || 1);
+      return Math.max(0, (Number(entry.quantity) || 1) - requested);
+    }
+
     function filteredDuplicates() {
       const q = search.value.trim().toLowerCase();
       return duplicates
         .map(item => ({
           ...item,
-          filteredCodes: item.codes.filter(entry => !q || item.team.toLowerCase().includes(q) || entry.code.toLowerCase().includes(q))
+          filteredCodes: item.codes.filter(entry => {
+            const matchesQuery = !q || item.team.toLowerCase().includes(q) || entry.code.toLowerCase().includes(q);
+            const matchesAvailability = !showAvailableOnly || duplicateAvailable(entry) > 0;
+            return matchesQuery && matchesAvailability;
+          })
         }))
-        .filter(item => item.filteredCodes.length || !q);
+        .filter(item => item.filteredCodes.length || (!q && !showAvailableOnly));
     }
 
     function render() {
@@ -360,6 +371,9 @@ const defaultMissing = [
         button.classList.toggle("active", button.dataset.view === currentView);
       });
       status.style.display = currentView === "missing" ? "" : "none";
+      availableOnly.classList.toggle("hidden", currentView !== "duplicates");
+      availableOnly.classList.toggle("filter-active", showAvailableOnly);
+      availableOnly.textContent = showAvailableOnly ? "Mostrando disponibles" : "Solo disponibles";
       document.querySelector("#addTeam").classList.toggle("hidden", !isAdmin || currentView === "exchanges");
       document.querySelector("#runSecurityTest").classList.toggle("hidden", !isAdmin || currentView === "exchanges");
       document.querySelector("#runSecurityTestV2").classList.toggle("hidden", !isAdmin || currentView === "exchanges");
@@ -420,7 +434,7 @@ const defaultMissing = [
           <div class="codes">
             ${item.filteredCodes.map(entry => {
               const requested = Math.min(Number(entry.requestedQuantity) || 0, Number(entry.quantity) || 1);
-              const available = Math.max(0, (Number(entry.quantity) || 1) - requested);
+              const available = duplicateAvailable(entry);
               const isSelected = selectedWants.has(entryId(entry));
               return `
               <span class="code ${available > 0 ? "selectable" : "unavailable"} ${requested > 0 ? "requested" : ""} ${isSelected ? "selected" : ""}" ${available > 0 ? `data-select-want="${escapeAttr(entryId(entry))}"` : ""}>
@@ -442,8 +456,8 @@ const defaultMissing = [
 
       const total = duplicates.flatMap(item => item.codes).reduce((sum, entry) => sum + Math.max(0, (entry.quantity || 1) - (entry.requestedQuantity || 0)), 0);
       document.querySelector("#total").textContent = total;
-      document.querySelector("#teams").textContent = duplicates.length;
-      document.querySelector("#uncertain").textContent = duplicates.flatMap(item => item.codes).length;
+      document.querySelector("#teams").textContent = data.length;
+      document.querySelector("#uncertain").textContent = data.flatMap(item => item.filteredCodes).length;
       document.querySelector("#totalLabel").textContent = "repetidas disponibles";
       document.querySelector("#teamsLabel").textContent = "equipos con repetidas";
       document.querySelector("#uncertainLabel").textContent = "codigos distintos";
@@ -698,6 +712,10 @@ const defaultMissing = [
       });
       search.addEventListener("input", render);
       status.addEventListener("change", render);
+      availableOnly.addEventListener("click", () => {
+        showAvailableOnly = !showAvailableOnly;
+        render();
+      });
       requesterName.addEventListener("input", renderExchangePanel);
       requesterEmail.addEventListener("input", renderExchangePanel);
       humanCheck.addEventListener("input", renderExchangePanel);
