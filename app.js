@@ -499,7 +499,7 @@ const defaultMissing = [
               <span class="code">Quiere: ${wants || "sin seleccion"}</span>
               <span class="code">Da: ${gives || "sin seleccion"}</span>
               ${request.note ? `<span class="code">${escapeHtml(request.note)}</span>` : ""}
-              ${isAdmin ? `<button type="button" data-download-request="${request.id}" data-download-type="proposal">Descargar TXT</button><button type="button" data-copy-request="${request.id}">Copiar WhatsApp</button><button type="button" data-download-request="${request.id}" data-download-type="complete">Lista completa</button><button type="button" data-request="${request.id}" data-status="accepted">Aceptar</button><button type="button" data-request="${request.id}" data-status="closed">Cerrar</button><button type="button" data-request="${request.id}" data-status="rejected">Descartar</button>` : ""}
+              ${isAdmin ? `<button type="button" data-download-request="${request.id}" data-download-type="proposal">Descargar TXT</button><button type="button" data-copy-request="${request.id}">Copiar WhatsApp</button><button type="button" data-download-request="${request.id}" data-download-type="complete">Lista completa</button>${request.status === "submitted" ? `<button type="button" data-accept-available="${request.id}">Aceptar disponibles</button>` : ""}<button type="button" data-request="${request.id}" data-status="accepted">Aceptar</button><button type="button" data-request="${request.id}" data-status="closed">Cerrar</button><button type="button" data-request="${request.id}" data-status="rejected">Descartar</button>` : ""}
             </div>
           </article>`;
         }).join("");
@@ -625,6 +625,49 @@ const defaultMissing = [
       const previousText = button.textContent;
       button.textContent = "WhatsApp copiado";
       setTimeout(() => button.textContent = previousText, 1500);
+    }
+
+    function proposalWantsAvailable(item, requestId) {
+      const duplicateEntry = duplicates.flatMap(group => group.codes).find(entry => entry.code === item.code && entry.team === item.team);
+      if (!duplicateEntry) return 0;
+      const totalQuantity = Number(duplicateEntry.quantity) || 1;
+      const requestedTotal = Number(duplicateEntry.requestedQuantity) || 0;
+      const requestOwnQuantity = exchangeItems
+        .filter(candidate => candidate.request_id === requestId && candidate.direction === "wants_from_owner" && candidate.team === item.team && candidate.code === item.code)
+        .reduce((sum, candidate) => sum + (Number(candidate.quantity) || 1), 0);
+      const requestedByOthers = Math.max(0, requestedTotal - requestOwnQuantity);
+      return Math.max(0, totalQuantity - requestedByOthers);
+    }
+
+    async function acceptAvailableExchange(requestId) {
+      if (!isAdmin) return;
+      const { request: requestRecord, wants, gives } = exchangeDetails(requestId);
+      if (!requestRecord) return;
+      const unavailable = wants.filter(item => proposalWantsAvailable(item, requestId) <= 0);
+      const available = wants.filter(item => proposalWantsAvailable(item, requestId) > 0);
+      if (!available.length) {
+        alert("No quedan estampas disponibles para dar en esta propuesta.");
+        return;
+      }
+      if (!gives.length) {
+        alert("Esta propuesta no tiene estampas que te entreguen.");
+        return;
+      }
+      const message = `Aceptar esta propuesta con ${available.length} estampas disponibles para dar y ${gives.length} que recibes?${unavailable.length ? `\n\nSe quitaran ${unavailable.length} que ya estan apartadas por otra propuesta.` : ""}`;
+      if (!confirm(message)) return;
+      for (const item of unavailable) {
+        await request(`/api/database/records/exchange_items?id=eq.${encodeURIComponent(item.id)}`, {
+          method: "DELETE",
+          headers: authHeaders()
+        });
+      }
+      await request(`/api/database/records/exchange_requests?id=eq.${encodeURIComponent(requestId)}`, {
+        method: "PATCH",
+        headers: authHeaders(),
+        body: JSON.stringify({ status: "accepted" })
+      });
+      await refreshFromBackend();
+      render();
     }
 
     function runSecurityE2ETest() {
@@ -790,6 +833,8 @@ const defaultMissing = [
         downloadExchangeText(button.dataset.downloadRequest, button.dataset.downloadType || "proposal");
       } else if (button?.dataset.copyRequest) {
         await copyExchangeWhatsapp(button.dataset.copyRequest, button);
+      } else if (button?.dataset.acceptAvailable) {
+        await acceptAvailableExchange(button.dataset.acceptAvailable);
       } else if (button?.dataset.request) {
         await updateExchangeStatus(button.dataset.request, button.dataset.status);
       } else if (button?.dataset.toggleTeam) {
