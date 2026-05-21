@@ -485,7 +485,7 @@ const defaultMissing = [
               <span class="code">Quiere: ${wants || "sin seleccion"}</span>
               <span class="code">Da: ${gives || "sin seleccion"}</span>
               ${request.note ? `<span class="code">${escapeHtml(request.note)}</span>` : ""}
-              ${isAdmin ? `<button type="button" data-request="${request.id}" data-status="accepted">Aceptar</button><button type="button" data-request="${request.id}" data-status="closed">Cerrar</button><button type="button" data-request="${request.id}" data-status="rejected">Rechazar</button>` : ""}
+              ${isAdmin ? `<button type="button" data-request="${request.id}" data-status="accepted">Aceptar</button><button type="button" data-request="${request.id}" data-status="closed">Cerrar</button><button type="button" data-request="${request.id}" data-status="rejected">Descartar</button>` : ""}
             </div>
           </article>`;
         }).join("");
@@ -872,12 +872,13 @@ const defaultMissing = [
 
     async function updateExchangeStatus(id, nextStatus) {
       if (!isAdmin) return;
+      if (nextStatus === "rejected" && !confirm("Descartar esta propuesta y liberar las estampas apartadas?")) return;
       await request(`/api/database/records/exchange_requests?id=eq.${encodeURIComponent(id)}`, {
         method: "PATCH",
         headers: authHeaders(),
         body: JSON.stringify({ status: nextStatus })
       });
-      await loadExchanges();
+      await refreshFromBackend();
       render();
     }
 
