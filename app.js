@@ -51,6 +51,7 @@ const defaultMissing = [
     const PUBLIC_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3OC0xMjM0LTU2NzgtOTBhYi1jZGVmMTIzNDU2NzgiLCJlbWFpbCI6ImFub25AaW5zZm9yZ2UuY29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNTQwMjB9.FmS2aPBOaBN2M3QCHtfRtpcmh992u8OY1qV3TqmDN2U";
     const SESSION_KEY = "album-insforge-session-v1";
     const OAUTH_KEY = "album-insforge-oauth-v1";
+    const LIVE_DATA_CACHE_KEY = "album-live-stickers-cache-v1";
     const EXCHANGE_COOLDOWN_KEY = "album-last-exchange-submit-v1";
     const EXCHANGE_COOLDOWN_MS = 10 * 60 * 1000;
     const MIN_FORM_SECONDS = 4;
@@ -121,17 +122,25 @@ const defaultMissing = [
 
     async function loadStickers() {
       try {
-        await loadRequestCounts();
-        await loadOfferCounts();
         const rows = await request("/api/database/records/album_stickers?order=sort_order.asc,team.asc,code.asc", {
           headers: authHeaders()
         });
-        setListsFromRows(Array.isArray(rows) ? rows : []);
+        const liveRows = Array.isArray(rows) ? rows : [];
+        setListsFromRows(liveRows);
+        localStorage.setItem(LIVE_DATA_CACHE_KEY, JSON.stringify({ rows: liveRows, savedAt: Date.now() }));
+        await loadRequestCounts();
+        await loadOfferCounts();
         hideNote();
       } catch (error) {
-        missing = structuredClone(defaultMissing);
-        duplicates = structuredClone(defaultDuplicates);
-        showNote("No pude cargar los datos en vivo. Se muestra una copia inicial mientras se recupera la conexion.");
+        const cached = loadJson(LIVE_DATA_CACHE_KEY, null);
+        if (Array.isArray(cached?.rows) && cached.rows.length) {
+          setListsFromRows(cached.rows);
+          showNote("No pude actualizar los datos en vivo. Se muestra la ultima copia guardada mientras se recupera la conexion.");
+        } else {
+          missing = structuredClone(defaultMissing);
+          duplicates = structuredClone(defaultDuplicates);
+          showNote("No pude cargar los datos en vivo. Se muestra una copia inicial mientras se recupera la conexion.");
+        }
       }
     }
 
@@ -1048,14 +1057,30 @@ const defaultMissing = [
     }
 
     async function request(path, options = {}) {
-      const response = await fetch(`${API_BASE_URL}${path}`, {
-        ...options,
-        headers: { "Content-Type": "application/json", ...(options.headers || {}) }
-      });
-      const text = await response.text();
-      const data = parseResponse(text);
-      if (!response.ok) throw new Error(`${response.status} ${data?.message || data?.error || response.statusText}`);
-      return data;
+      const method = (options.method || "GET").toUpperCase();
+      const attempts = method === "GET" ? 3 : 1;
+      let lastError = null;
+      for (let attempt = 1; attempt <= attempts; attempt += 1) {
+        try {
+          const response = await fetch(`${API_BASE_URL}${path}`, {
+            ...options,
+            cache: method === "GET" ? "no-store" : options.cache,
+            headers: { "Content-Type": "application/json", ...(options.headers || {}) }
+          });
+          const text = await response.text();
+          const data = parseResponse(text);
+          if (!response.ok) throw new Error(`${response.status} ${data?.message || data?.error || response.statusText}`);
+          return data;
+        } catch (error) {
+          lastError = error;
+          if (attempt < attempts) await wait(600 * attempt);
+        }
+      }
+      throw lastError;
+    }
+
+    function wait(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     function authHeaders() {
