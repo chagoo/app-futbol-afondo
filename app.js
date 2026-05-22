@@ -779,6 +779,12 @@ const defaultMissing = [
       requesterEmail.addEventListener("input", renderExchangePanel);
       humanCheck.addEventListener("input", renderExchangePanel);
       document.querySelector("#copy").addEventListener("click", copyList);
+      document.querySelector("#quickDeal").addEventListener("click", () => {
+        currentView = "duplicates";
+        render();
+        document.querySelector(".view-tabs").scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      document.querySelector("#quickDealSend").addEventListener("click", goToExchange);
       document.querySelector("#goToExchange").addEventListener("click", goToExchange);
       document.querySelector("#copySelection").addEventListener("click", copySelection);
       document.querySelector("#addTeam").addEventListener("click", addTeam);
