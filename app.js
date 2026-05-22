@@ -314,11 +314,36 @@ const defaultMissing = [
       const clean = normalizeCode(code);
       const amount = Math.max(1, Number(quantity) || 1);
       if (!isAdmin || !teamName || !clean) return;
-      await request("/api/database/records/album_stickers", {
-        method: "POST",
-        headers: { ...authHeaders(), Prefer: "return=representation" },
-        body: JSON.stringify([{ team: teamName, code: clean, list_type: "duplicate", uncertain: false, quantity: amount, sort_order: Date.now() % 100000 }])
-      });
+      const existing = duplicates
+        .find(group => group.team === teamName)
+        ?.codes.find(entry => entry.code === clean);
+      if (existing?.id) {
+        await request(`/api/database/records/album_stickers?id=eq.${encodeURIComponent(existing.id)}`, {
+          method: "PATCH",
+          headers: authHeaders(),
+          body: JSON.stringify({ quantity: (Number(existing.quantity) || 1) + amount })
+        });
+      } else {
+        try {
+          await request("/api/database/records/album_stickers", {
+            method: "POST",
+            headers: { ...authHeaders(), Prefer: "return=representation" },
+            body: JSON.stringify([{ team: teamName, code: clean, list_type: "duplicate", uncertain: false, quantity: amount, sort_order: Date.now() % 100000 }])
+          });
+        } catch (error) {
+          if (!error.message.includes("409")) throw error;
+          const rows = await request(`/api/database/records/album_stickers?team=eq.${encodeURIComponent(teamName)}&code=eq.${encodeURIComponent(clean)}&list_type=eq.duplicate`, {
+            headers: authHeaders()
+          });
+          const duplicate = Array.isArray(rows) ? rows[0] : null;
+          if (!duplicate?.id) throw error;
+          await request(`/api/database/records/album_stickers?id=eq.${encodeURIComponent(duplicate.id)}`, {
+            method: "PATCH",
+            headers: authHeaders(),
+            body: JSON.stringify({ quantity: (Number(duplicate.quantity) || 1) + amount })
+          });
+        }
+      }
       await refreshFromBackend();
       render();
     }
