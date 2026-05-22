@@ -66,7 +66,7 @@ const defaultMissing = [
     let selectedGives = new Set();
     let requestCounts = new Map();
     let offerCounts = new Map();
-    let showAvailableOnly = false;
+    let showAvailableOnly = true;
 
     const teamsList = document.querySelector("#teamsList");
     const search = document.querySelector("#search");
@@ -352,18 +352,23 @@ const defaultMissing = [
       return Math.max(0, (Number(entry.quantity) || 1) - requested);
     }
 
+    function usingAvailableOnly() {
+      return !isAdmin || showAvailableOnly;
+    }
+
     function filteredDuplicates() {
       const q = search.value.trim().toLowerCase();
+      const onlyAvailable = usingAvailableOnly();
       return duplicates
         .map(item => ({
           ...item,
           filteredCodes: item.codes.filter(entry => {
             const matchesQuery = !q || item.team.toLowerCase().includes(q) || entry.code.toLowerCase().includes(q);
-            const matchesAvailability = !showAvailableOnly || duplicateAvailable(entry) > 0;
+            const matchesAvailability = !onlyAvailable || duplicateAvailable(entry) > 0;
             return matchesQuery && matchesAvailability;
           })
         }))
-        .filter(item => item.filteredCodes.length || (!q && !showAvailableOnly));
+        .filter(item => item.filteredCodes.length || (!q && !onlyAvailable));
     }
 
     function render() {
@@ -371,9 +376,9 @@ const defaultMissing = [
         button.classList.toggle("active", button.dataset.view === currentView);
       });
       status.style.display = currentView === "missing" ? "" : "none";
-      availableOnly.classList.toggle("hidden", currentView !== "duplicates");
+      availableOnly.classList.toggle("hidden", currentView !== "duplicates" || !isAdmin);
       availableOnly.classList.toggle("filter-active", showAvailableOnly);
-      availableOnly.textContent = showAvailableOnly ? "Mostrando disponibles" : "Solo disponibles";
+      availableOnly.textContent = showAvailableOnly ? "Ver apartadas" : "Solo disponibles";
       document.querySelector("#addTeam").classList.toggle("hidden", !isAdmin || currentView === "exchanges");
       document.querySelector("#runSecurityTest").classList.toggle("hidden", !isAdmin || currentView === "exchanges");
       document.querySelector("#runSecurityTestV2").classList.toggle("hidden", !isAdmin || currentView === "exchanges");
@@ -514,15 +519,18 @@ const defaultMissing = [
 
     function copyList() {
       if (currentView === "duplicates") {
+        const onlyAvailable = usingAvailableOnly();
         const lines = duplicates.map(item => {
-          const repeated = item.codes.map(entry => {
-            const available = Math.max(0, (entry.quantity || 1) - (entry.requestedQuantity || 0));
-            const requested = entry.requestedQuantity ? `, solicitada x${entry.requestedQuantity}` : "";
-            return `${entry.code} x${available}${requested}`;
-          }).join(", ");
-          return `${item.team}: ${repeated}`;
-        });
-        navigator.clipboard.writeText(`Tengo estas estampas repetidas para intercambio:\n${lines.join("\n")}`);
+          const repeated = item.codes
+            .filter(entry => !onlyAvailable || duplicateAvailable(entry) > 0)
+            .map(entry => {
+              const available = duplicateAvailable(entry);
+              const requested = entry.requestedQuantity ? `, solicitada x${entry.requestedQuantity}` : "";
+              return `${entry.code} x${available}${requested}`;
+            }).join(", ");
+          return repeated ? `${item.team}: ${repeated}` : "";
+        }).filter(Boolean);
+        navigator.clipboard.writeText(`Tengo estas estampas repetidas disponibles para intercambio:\n${lines.join("\n")}`);
         document.querySelector("#copy").textContent = "Lista copiada";
         setTimeout(() => document.querySelector("#copy").textContent = "Copiar lista", 1500);
         return;
@@ -756,6 +764,7 @@ const defaultMissing = [
       search.addEventListener("input", render);
       status.addEventListener("change", render);
       availableOnly.addEventListener("click", () => {
+        if (!isAdmin) return;
         showAvailableOnly = !showAvailableOnly;
         render();
       });
