@@ -332,6 +332,10 @@ const defaultMissing = [
       return entry.id || "";
     }
 
+    function shouldShowMissingEntry(entry) {
+      return isAdmin || (Number(entry.offeredQuantity) || 0) === 0;
+    }
+
     function filteredData() {
       const q = search.value.trim().toLowerCase();
       const mode = status.value;
@@ -341,10 +345,10 @@ const defaultMissing = [
           filteredCodes: allCodes(item).filter(entry => {
             const matchesQuery = !q || item.team.toLowerCase().includes(q) || entry.code.toLowerCase().includes(q);
             const matchesStatus = mode === "all" || (mode === "confirmed" && !entry.uncertain) || (mode === "uncertain" && entry.uncertain);
-            return matchesQuery && matchesStatus;
+            return matchesQuery && matchesStatus && shouldShowMissingEntry(entry);
           })
         }))
-        .filter(item => item.filteredCodes.length || (!q && mode === "all"));
+        .filter(item => item.filteredCodes.length || (isAdmin && !q && mode === "all"));
     }
 
     function duplicateAvailable(entry) {
@@ -420,10 +424,11 @@ const defaultMissing = [
         </article>
       `).join("");
 
-      const confirmed = missing.flatMap(item => item.codes).length;
-      const uncertain = missing.flatMap(item => item.uncertain || []).length;
-      document.querySelector("#total").textContent = confirmed + uncertain;
-      document.querySelector("#teams").textContent = missing.length;
+      const visibleCodes = data.flatMap(item => item.filteredCodes);
+      const visibleTeams = data.filter(item => item.filteredCodes.length).length;
+      const uncertain = visibleCodes.filter(entry => entry.uncertain).length;
+      document.querySelector("#total").textContent = visibleCodes.length;
+      document.querySelector("#teams").textContent = visibleTeams;
       document.querySelector("#uncertain").textContent = uncertain;
       document.querySelector("#totalLabel").textContent = "faltantes visibles";
       document.querySelector("#teamsLabel").textContent = "equipos/secciones";
@@ -537,10 +542,12 @@ const defaultMissing = [
       }
 
       const lines = missing.map(item => {
-        const confirmed = item.codes.map(entry => entry.code || entry).join(", ");
-        const uncertain = (item.uncertain || []).map(entry => `${entry.code || entry}?`).join(", ");
-        return `${item.team}: ${[confirmed, uncertain].filter(Boolean).join(", ")}`;
-      });
+        const visibleEntries = allCodes(item).filter(shouldShowMissingEntry);
+        const confirmed = visibleEntries.filter(entry => !entry.uncertain).map(entry => entry.code || entry).join(", ");
+        const uncertain = visibleEntries.filter(entry => entry.uncertain).map(entry => `${entry.code || entry}?`).join(", ");
+        const values = [confirmed, uncertain].filter(Boolean).join(", ");
+        return values ? `${item.team}: ${values}` : "";
+      }).filter(Boolean);
       navigator.clipboard.writeText(`Busco estas estampas para intercambio:\n${lines.join("\n")}`);
       document.querySelector("#copy").textContent = "Lista copiada";
       setTimeout(() => document.querySelector("#copy").textContent = "Copiar lista", 1500);
