@@ -126,14 +126,16 @@ const defaultMissing = [
           headers: authHeaders()
         });
         const liveRows = Array.isArray(rows) ? rows : [];
-        setListsFromRows(liveRows);
         localStorage.setItem(LIVE_DATA_CACHE_KEY, JSON.stringify({ rows: liveRows, savedAt: Date.now() }));
         await loadRequestCounts();
         await loadOfferCounts();
+        setListsFromRows(liveRows);
         hideNote();
       } catch (error) {
         const cached = loadJson(LIVE_DATA_CACHE_KEY, null);
         if (Array.isArray(cached?.rows) && cached.rows.length) {
+          await loadRequestCounts();
+          await loadOfferCounts();
           setListsFromRows(cached.rows);
           showNote("No pude actualizar los datos en vivo. Se muestra la ultima copia guardada mientras se recupera la conexion.");
         } else {
